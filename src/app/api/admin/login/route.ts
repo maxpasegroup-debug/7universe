@@ -2,6 +2,7 @@ import { timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { adminCookieName, adminCookieOptions, createAdminSessionToken } from "@/lib/auth/admin-session";
+import { badRequest, getRequestId, logApiError, serverError } from "@/lib/api";
 
 function safeEqual(a: string, b: string): boolean {
   try {
@@ -17,24 +18,23 @@ function safeEqual(a: string, b: string): boolean {
 type Body = { email?: string; password?: string };
 
 export async function POST(request: Request) {
+  const requestId = getRequestId();
   let body: Body;
   try {
     body = (await request.json()) as Body;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return badRequest("Invalid JSON", requestId);
   }
 
-  const email = typeof body.email === "string" ? body.email.trim() : "";
   const password = typeof body.password === "string" ? body.password : "";
 
-  const adminEmail = process.env.ADMIN_EMAIL ?? "";
   const adminPass = process.env.ADMIN_PASSWORD ?? "";
 
-  if (!adminEmail || !adminPass) {
+  if (!adminPass) {
     return NextResponse.json({ error: "Admin login not configured" }, { status: 503 });
   }
 
-  if (!safeEqual(email, adminEmail) || !safeEqual(password, adminPass)) {
+  if (!safeEqual(password, adminPass)) {
     return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     store.set(adminCookieName(), token, adminCookieOptions());
     return NextResponse.json({ ok: true });
   } catch (e) {
-    console.error("[admin/login]", e);
-    return NextResponse.json({ error: "Could not create session" }, { status: 500 });
+    logApiError("admin/login", e, requestId);
+    return serverError("Could not create session", requestId);
   }
 }

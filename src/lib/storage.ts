@@ -4,6 +4,8 @@ export const STORAGE_KEYS = {
   LANGUAGE: "7universe-language",
   USER: "7universe-user",
   PROFILE: "7universe-profile",
+  /** Referrer user id (UUID) from `?ref=` — carried to signup. */
+  REFERRER_ID: "7universe-referrer-id",
 } as const;
 
 /** Legacy shape — migrated to StoredProfile on read when possible. */
@@ -12,6 +14,7 @@ export type StoredUser = {
   mobile: string;
 };
 
+/** `id` is the Prisma user id (UUID), used as `userId` in APIs. */
 export type StoredProfile = {
   id: string;
   name: string;
@@ -82,4 +85,18 @@ function readLegacyUser(): StoredUser | null {
 export function setStoredProfile(profile: StoredProfile): void {
   window.localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(profile));
   window.localStorage.removeItem(STORAGE_KEYS.USER);
+}
+
+export function getStoredReferrerId(): string | null {
+  if (typeof window === "undefined") return null;
+  const v = window.localStorage.getItem(STORAGE_KEYS.REFERRER_ID)?.trim();
+  return v || null;
+}
+
+export function setStoredReferrerId(id: string): void {
+  window.localStorage.setItem(STORAGE_KEYS.REFERRER_ID, id.trim());
+}
+
+export function clearStoredReferrerId(): void {
+  window.localStorage.removeItem(STORAGE_KEYS.REFERRER_ID);
 }

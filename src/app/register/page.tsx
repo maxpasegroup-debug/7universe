@@ -1,18 +1,26 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
-import { registerProfile } from "@/lib/api/onboarding-client";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { createUser } from "@/lib/api/user-client";
 import { getCopy, resolveLanguage } from "@/lib/i18n";
-import { getStoredLanguage, getStoredProfile, setStoredProfile } from "@/lib/storage";
+import {
+  clearStoredReferrerId,
+  getStoredLanguage,
+  getStoredProfile,
+  getStoredReferrerId,
+  setStoredProfile,
+} from "@/lib/storage";
+import { isUuid } from "@/lib/validation";
 import { SpaceBackground } from "@/components/layout/SpaceBackground";
+import { RefCapture } from "@/components/referral/RefCapture";
 import { GlowButton } from "@/components/ui/GlowButton";
 import { Logo } from "@/components/ui/Logo";
 
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const refFromUrl = searchParams.get("ref")?.trim().toUpperCase() ?? undefined;
+  const rawFromUrl = searchParams.get("ref")?.trim() ?? "";
 
   const lang = resolveLanguage(getStoredLanguage());
   const c = getCopy(lang);
@@ -21,6 +29,17 @@ function RegisterForm() {
   const [mobile, setMobile] = useState(existing?.mobile ?? "");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [storedRef, setStoredRef] = useState<string | null>(null);
+  useEffect(() => {
+    setStoredRef(getStoredReferrerId());
+  }, []);
+
+  const referrerUuid = useMemo(() => {
+    if (rawFromUrl && isUuid(rawFromUrl)) return rawFromUrl;
+    if (storedRef && isUuid(storedRef)) return storedRef;
+    return null;
+  }, [rawFromUrl, storedRef]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -37,20 +56,23 @@ function RegisterForm() {
     setError(null);
     setLoading(true);
     try {
-      const { profile } = await registerProfile({
+      const res = await createUser({
         name: trimmedName,
         mobile: trimmedMobile,
         language: lang,
-        referral_code: refFromUrl,
+        ...(referrerUuid ? { referrerId: referrerUuid } : {}),
       });
       setStoredProfile({
-        id: profile.id,
-        name: profile.name,
-        mobile: profile.mobile,
+        id: res.userId,
+        name: trimmedName,
+        mobile: trimmedMobile,
       });
+      if (referrerUuid) {
+        clearStoredReferrerId();
+      }
       router.push("/dashboard");
-    } catch {
-      setError(c.userForm.submitError);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : c.userForm.submitError);
     } finally {
       setLoading(false);
     }
@@ -63,8 +85,8 @@ function RegisterForm() {
           <Logo href="/language" size="md" />
         </div>
         <h1 className="font-display text-center text-2xl font-semibold text-slate-50 sm:text-3xl">{c.userForm.title}</h1>
-        {refFromUrl && (
-          <p className="mt-2 text-center text-xs text-amber-200/80">Referral code applied: {refFromUrl}</p>
+        {referrerUuid && (
+          <p className="mt-2 text-center text-xs text-amber-200/80">Referral link applied</p>
         )}
 
         <form onSubmit={(e) => void handleSubmit(e)} className="mt-10 flex flex-1 flex-col gap-5">
@@ -122,7 +144,10 @@ export default function RegisterPage() {
         <div className="flex min-h-dvh items-center justify-center bg-black text-slate-400">Loading…</div>
       }
     >
-      <RegisterForm />
+      <>
+        <RefCapture />
+        <RegisterForm />
+      </>
     </Suspense>
   );
 }

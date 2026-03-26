@@ -2,28 +2,29 @@
 
 import { useEffect, useState } from "react";
 
+type ProgressRow = {
+  id: string;
+  userId: string;
+  step1Completed: boolean;
+  step2Completed: boolean;
+  step3Completed: boolean;
+  score: number;
+};
+
 type UserRow = {
   id: string;
   name: string;
   mobile: string;
   language: string;
-  step1_completed: boolean;
-  step2_completed: boolean;
-  step3_completed: boolean;
-  converted: boolean;
-  high_intent: boolean;
-  lead_score: number;
-  referral_code: string | null;
-  referrer_id: string | null;
-  created_at: string;
-  last_activity_at: string;
+  createdAt: string;
+  progress: ProgressRow | null;
 };
 
 const filters = [
   { value: "all", label: "All" },
-  { value: "completed", label: "Completed funnel" },
-  { value: "not_converted", label: "Finished steps, not converted" },
-  { value: "high_intent", label: "High intent" },
+  { value: "completed", label: "Completed (all steps)" },
+  { value: "not_completed", label: "Not completed" },
+  { value: "high_intent", label: "High intent (step 3)" },
 ] as const;
 
 export default function AdminUsersPage() {
@@ -54,7 +55,7 @@ export default function AdminUsersPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold text-slate-50">Users</h1>
-          <p className="mt-1 text-sm text-slate-500">Lead scores and funnel progress.</p>
+          <p className="mt-1 text-sm text-slate-500">Funnel progress and lead score.</p>
         </div>
         <label className="text-sm text-slate-400">
           Filter
@@ -83,28 +84,34 @@ export default function AdminUsersPage() {
               <th className="px-4 py-3">Lang</th>
               <th className="px-4 py-3">Steps</th>
               <th className="px-4 py-3">Score</th>
-              <th className="px-4 py-3">Conv.</th>
-              <th className="px-4 py-3">Ref code</th>
               <th className="px-4 py-3">Created</th>
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
-              <tr key={u.id} className="border-b border-slate-800/80">
-                <td className="px-4 py-3 font-medium text-slate-100">{u.name}</td>
-                <td className="px-4 py-3">{u.mobile}</td>
-                <td className="px-4 py-3">{u.language}</td>
-                <td className="px-4 py-3">
-                  {u.step1_completed ? "1" : "·"}/
-                  {u.step2_completed ? "2" : "·"}/
-                  {u.step3_completed ? "3" : "·"}
-                </td>
-                <td className="px-4 py-3 text-amber-200">{u.lead_score}</td>
-                <td className="px-4 py-3">{u.converted ? "Yes" : "—"}</td>
-                <td className="px-4 py-3 font-mono text-xs">{u.referral_code ?? "—"}</td>
-                <td className="px-4 py-3 text-xs text-slate-500">{new Date(u.created_at).toLocaleString()}</td>
-              </tr>
-            ))}
+            {users.map((u) => {
+              const p = u.progress;
+              return (
+                <tr key={u.id} className="border-b border-slate-800/80">
+                  <td className="px-4 py-3 font-medium text-slate-100">{u.name}</td>
+                  <td className="px-4 py-3">{u.mobile}</td>
+                  <td className="px-4 py-3">{u.language}</td>
+                  <td className="px-4 py-3">
+                    {p ? (
+                      <>
+                        {p.step1Completed ? "1" : "·"}/{p.step2Completed ? "2" : "·"}/
+                        {p.step3Completed ? "3" : "·"}
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-amber-200">{p?.score ?? "—"}</td>
+                  <td className="px-4 py-3 text-xs text-slate-500">
+                    {new Date(u.createdAt).toLocaleString()}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         {users.length === 0 && !error && <p className="px-4 py-8 text-center text-slate-500">No users match.</p>}

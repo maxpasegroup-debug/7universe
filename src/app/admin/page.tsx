@@ -3,12 +3,9 @@
 import { useEffect, useState } from "react";
 
 type Stats = {
-  total_users: number;
-  conversions: number;
-  drop_off_no_step1: number;
-  high_intent_users: number;
-  avg_lead_score: number;
-  referral_signups: number;
+  totalUsers: number;
+  completedUsers: number;
+  highIntentUsers: number;
 };
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
@@ -43,7 +40,7 @@ export default function AdminHomePage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
       <h1 className="font-display text-2xl font-bold text-slate-50">Overview</h1>
-      <p className="mt-1 text-sm text-slate-500">Funnel health and engagement at a glance.</p>
+      <p className="mt-1 text-sm text-slate-500">User progress snapshot.</p>
 
       {error && (
         <p className="mt-6 rounded-xl border border-red-500/30 bg-red-950/40 px-4 py-3 text-sm text-red-200">{error}</p>
@@ -51,12 +48,9 @@ export default function AdminHomePage() {
 
       {stats && (
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <StatCard label="Total users" value={stats.total_users} />
-          <StatCard label="Conversions (joined)" value={stats.conversions} />
-          <StatCard label="Drop-off (no step 1)" value={stats.drop_off_no_step1} />
-          <StatCard label="High intent" value={stats.high_intent_users} />
-          <StatCard label="Avg lead score" value={stats.avg_lead_score} />
-          <StatCard label="Referral signups" value={stats.referral_signups} />
+          <StatCard label="Total users" value={stats.totalUsers} />
+          <StatCard label="Completed users" value={stats.completedUsers} />
+          <StatCard label="High intent users" value={stats.highIntentUsers} />
         </div>
       )}
     </div>

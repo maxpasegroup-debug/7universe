@@ -1,0 +1,64 @@
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// End-user profile (onboarding signup).
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  mobile    String   @unique
+  language  String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  progress Progress?
+  refereeReferrals Referral[] @relation("ReferralReferee")
+  referrerReferrals Referral[] @relation("ReferralReferrer")
+
+  @@map("users")
+}
+
+/// One row per user — funnel completion and lead score.
+model Progress {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @unique @map("user_id") @db.Uuid
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  step1Completed Boolean  @default(false) @map("step1_completed")
+  step2Completed Boolean  @default(false) @map("step2_completed")
+  step3Completed Boolean  @default(false) @map("step3_completed")
+  score          Int      @default(0)
+
+  @@map("progress")
+}
+
+/// CMS row per language (e.g. en, ml, ta).
+model AppSettings {
+  id            String @id @default(uuid()) @db.Uuid
+  language      String
+  step1VideoUrl String @map("step1_video_url")
+  step2PdfUrl   String @map("step2_pdf_url")
+  step3VideoUrl String @map("step3_video_url")
+  joinLink      String @map("join_link")
+
+  @@unique([language])
+  @@map("app_settings")
+}
+
+/// Referral attribution: referee user + optional referrer.
+model Referral {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  referrerId String?  @map("referrer_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user     User  @relation("ReferralReferee", fields: [userId], references: [id], onDelete: Cascade)
+  referrer User? @relation("ReferralReferrer", fields: [referrerId], references: [id], onDelete: SetNull)
+
+  @@unique([userId])
+  @@map("referrals")
+}

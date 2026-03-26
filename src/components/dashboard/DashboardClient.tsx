@@ -3,19 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
-  fetchProgress,
-  fetchPublicContent,
-  patchProgress,
-  postConvert,
-} from "@/lib/api/onboarding-client";
+  fetchAppSettings,
+  fetchUserProgress,
+  postUserProgress,
+  type ProgressRow,
+} from "@/lib/api/user-client";
 import { getAppPublicUrl } from "@/lib/app-url";
-import { mergeContentOverrides } from "@/lib/content/merge";
 import { JOIN_EXTERNAL_URL } from "@/lib/constants";
 import { getCopy, getMediaForLanguage, resolveLanguage, type LanguageCode } from "@/lib/i18n";
-import { mediaFromSettings } from "@/lib/media-from-settings";
-import { getStoredLanguage, getStoredProfile, setStoredProfile } from "@/lib/storage";
-import type { AppSettingsRow } from "@/types/app-settings";
-import type { OnboardingProfilePublic } from "@/types/onboarding";
+import { mediaFromPublicSettings, type PublicAppSettings } from "@/lib/media-public-settings";
+import { getStoredLanguage, getStoredProfile } from "@/lib/storage";
 import { ChatbotFAB } from "@/components/dashboard/ChatbotFAB";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { FloatingWhatsAppBar } from "@/components/dashboard/FloatingWhatsAppBar";
@@ -42,8 +39,9 @@ export function DashboardClient() {
   const baseCopy = getCopy(lang);
 
   const stored = useMemo(() => getStoredProfile(), []);
-  const [settings, setSettings] = useState<AppSettingsRow | null>(null);
-  const [apiProfile, setApiProfile] = useState<OnboardingProfilePublic | null>(null);
+  const [publicSettings, setPublicSettings] = useState<PublicAppSettings | null>(null);
+  const [progress, setProgress] = useState<ProgressRow | null>(null);
+  const [referralCount, setReferralCount] = useState(0);
 
   const [s1, setS1] = useState(false);
   const [s2, setS2] = useState(false);
@@ -53,17 +51,14 @@ export function DashboardClient() {
   const [pdfOpen, setPdfOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const c = useMemo(
-    () => mergeContentOverrides(lang, baseCopy, settings?.content_overrides ?? {}),
-    [lang, baseCopy, settings]
-  );
+  const c = baseCopy;
 
   const media = useMemo(() => {
-    if (settings) return mediaFromSettings(settings, lang);
+    if (publicSettings) return mediaFromPublicSettings(publicSettings);
     return getMediaForLanguage(lang);
-  }, [settings, lang]);
+  }, [publicSettings, lang]);
 
-  const joinLink = settings?.join_link?.trim() || JOIN_EXTERNAL_URL;
+  const joinLink = publicSettings?.joinLink?.trim() || JOIN_EXTERNAL_URL;
 
   const canStep2 = s1;
   const canStep3 = s1 && s2;
@@ -76,27 +71,25 @@ export function DashboardClient() {
   const load = useCallback(async () => {
     if (!stored?.id || !stored.mobile) return;
     try {
-      const progRes = await fetchProgress(stored.id, stored.mobile);
-      try {
-        const contentRes = await fetchPublicContent();
-        setSettings(contentRes.settings);
-      } catch {
-        /* CMS optional — fall back to static i18n media */
-      }
+      const [progRes, settingsRes] = await Promise.all([
+        fetchUserProgress(stored.id),
+        fetchAppSettings(lang).catch(() => null),
+      ]);
 
-      const row = progRes.profile;
-      setApiProfile(row);
-      setS1(row.step1_completed);
-      setS2(row.step2_completed);
-      setS3(row.step3_completed);
+      setProgress(progRes.progress);
+      setReferralCount(progRes.referralCount);
+      setS1(progRes.progress.step1Completed);
+      setS2(progRes.progress.step2Completed);
+      setS3(progRes.progress.step3Completed);
       setLoadError(null);
-      if (row.name !== stored.name || row.mobile !== stored.mobile) {
-        setStoredProfile({ id: row.id, name: row.name, mobile: row.mobile });
+
+      if (settingsRes) {
+        setPublicSettings(settingsRes);
       }
     } catch {
       setLoadError(errorLoadMsg);
     }
-  }, [stored, errorLoadMsg]);
+  }, [stored, errorLoadMsg, lang]);
 
   useEffect(() => {
     if (!stored?.id) {
@@ -106,24 +99,16 @@ export function DashboardClient() {
     void load();
   }, [stored?.id, router, load]);
 
-  async function saveStep(key: SavingKey, payload: {
-    step1_completed?: boolean;
-    step2_completed?: boolean;
-    step3_completed?: boolean;
-  }) {
+  async function saveStep(key: SavingKey, step: 1 | 2 | 3) {
     if (!stored?.id) return;
     setSaving(key);
     setLoadError(null);
     try {
-      const { profile: row } = await patchProgress({
-        id: stored.id,
-        mobile: stored.mobile,
-        ...payload,
-      });
-      setApiProfile(row);
-      setS1(row.step1_completed);
-      setS2(row.step2_completed);
-      setS3(row.step3_completed);
+      const row = await postUserProgress(stored.id, step);
+      setProgress(row);
+      setS1(row.step1Completed);
+      setS2(row.step2Completed);
+      setS3(row.step3Completed);
     } catch {
       setLoadError(c.dashboard.errorSave);
     } finally {
@@ -135,9 +120,7 @@ export function DashboardClient() {
     document.getElementById("step-1")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  const referralUrl = apiProfile?.referral_code
-    ? `${getAppPublicUrl()}/register?ref=${apiProfile.referral_code}`
-    : "";
+  const referralUrl = stored?.id ? `${getAppPublicUrl()}?ref=${encodeURIComponent(stored.id)}` : "";
 
   async function copyReferral() {
     if (!referralUrl) return;
@@ -163,11 +146,6 @@ export function DashboardClient() {
     }
   }
 
-  function handleJoinClick() {
-    if (!stored?.id) return;
-    void postConvert(stored.id, stored.mobile).catch(() => {});
-  }
-
   return (
     <>
       <DashboardHeader />
@@ -179,11 +157,11 @@ export function DashboardClient() {
           <div className="mt-6 flex flex-wrap gap-4 text-sm text-slate-400">
             <span>
               {c.dashboard.leadScoreLabel}:{" "}
-              <strong className="text-amber-200">{apiProfile?.lead_score ?? "—"}</strong>
+              <strong className="text-amber-200">{progress?.score ?? "—"}</strong>
             </span>
             <span>
               {c.dashboard.referralCountLabel}:{" "}
-              <strong className="text-amber-200">{apiProfile?.referral_count ?? 0}</strong>
+              <strong className="text-amber-200">{referralCount}</strong>
             </span>
           </div>
           <div className="mt-8">
@@ -246,7 +224,7 @@ export function DashboardClient() {
               <MarkStepButton
                 loading={saving === "s1"}
                 disabled={s1}
-                onClick={() => void saveStep("s1", { step1_completed: true })}
+                onClick={() => void saveStep("s1", 1)}
               >
                 {saving === "s1" ? c.dashboard.saving : c.dashboard.step1Action}
               </MarkStepButton>
@@ -285,7 +263,7 @@ export function DashboardClient() {
                 <MarkStepButton
                   loading={saving === "s2"}
                   disabled={s2 || !canStep2}
-                  onClick={() => void saveStep("s2", { step2_completed: true })}
+                  onClick={() => void saveStep("s2", 2)}
                 >
                   {saving === "s2" ? c.dashboard.saving : c.dashboard.step2Action}
                 </MarkStepButton>
@@ -304,7 +282,7 @@ export function DashboardClient() {
               <MarkStepButton
                 loading={saving === "s3"}
                 disabled={s3 || !canStep3}
-                onClick={() => void saveStep("s3", { step3_completed: true })}
+                onClick={() => void saveStep("s3", 3)}
               >
                 {saving === "s3" ? c.dashboard.saving : c.dashboard.step3Action}
               </MarkStepButton>
@@ -325,7 +303,6 @@ export function DashboardClient() {
                   href={joinLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  onClick={handleJoinClick}
                   className="glow-gold inline-flex w-full max-w-lg items-center justify-center rounded-xl border border-amber-400/40 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 px-6 py-4 text-center text-lg font-semibold text-black shadow-lg hover:brightness-110 sm:text-xl"
                 >
                   {c.dashboard.joinCta}

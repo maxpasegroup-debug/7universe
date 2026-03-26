@@ -1,10 +1,15 @@
+import { Suspense } from "react";
 import { SpaceBackground } from "@/components/layout/SpaceBackground";
+import { RefCapture } from "@/components/referral/RefCapture";
 import { Logo } from "@/components/ui/Logo";
 import { GlowLink } from "@/components/ui/GlowButton";
 
 export default function SplashPage() {
   return (
     <SpaceBackground>
+      <Suspense fallback={null}>
+        <RefCapture />
+      </Suspense>
       <main className="flex min-h-dvh flex-col items-center justify-center px-6 py-16 text-center">
         <div className="mb-10 flex flex-col items-center gap-6">
           <Logo size="lg" className="justify-center" />
