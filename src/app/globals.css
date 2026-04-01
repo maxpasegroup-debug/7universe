@@ -82,3 +82,121 @@ body {
 .phone-input-cosmic.react-tel-input .selected-flag:focus {
   background: rgba(15, 23, 42, 0.85);
 }
+
+/* —— Landing: premium cosmic motion (CSS-only, GPU-friendly) —— */
+@keyframes landing-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes landing-soft-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.03);
+  }
+}
+
+@keyframes landing-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes landing-twinkle {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes landing-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+@keyframes landing-hint-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(4px);
+    opacity: 0.9;
+  }
+}
+
+.landing-animate-in {
+  animation: landing-fade-up 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  opacity: 0;
+}
+
+.landing-delay-1 {
+  animation-delay: 0.1s;
+}
+.landing-delay-2 {
+  animation-delay: 0.22s;
+}
+.landing-delay-3 {
+  animation-delay: 0.34s;
+}
+.landing-delay-4 {
+  animation-delay: 0.46s;
+}
+.landing-delay-5 {
+  animation-delay: 0.58s;
+}
+
+.landing-orb-pulse {
+  animation: landing-soft-pulse 5s ease-in-out infinite;
+}
+
+.landing-float-slow {
+  animation: landing-float 7s ease-in-out infinite;
+}
+
+.landing-star-twinkle {
+  animation: landing-twinkle 4s ease-in-out infinite;
+}
+
+.landing-cta-pulse-glow {
+  animation: landing-soft-pulse 2.8s ease-in-out infinite;
+}
+
+.landing-shimmer-border {
+  background: linear-gradient(
+    90deg,
+    rgba(245, 158, 11, 0.15),
+    rgba(251, 191, 36, 0.35),
+    rgba(234, 88, 12, 0.25),
+    rgba(245, 158, 11, 0.15)
+  );
+  background-size: 200% 100%;
+  animation: landing-shimmer 8s linear infinite;
+}
+
+.landing-scroll-hint {
+  animation: landing-hint-bounce 2.2s ease-in-out infinite;
+}
