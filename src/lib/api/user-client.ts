@@ -32,11 +32,25 @@ async function readApiPayload<T>(res: Response): Promise<T | null> {
   }
 }
 
-function responseError(res: Response, fallback: string, payload?: { error?: string } | null): Error {
-  if (payload?.error && typeof payload.error === "string") return new Error(payload.error);
+type ErrorPayload = {
+  error?: string;
+  message?: string;
+  requestId?: string;
+};
+
+function firstNonEmptyString(...candidates: (string | undefined)[]): string | undefined {
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim().length > 0) return c.trim();
+  }
+  return undefined;
+}
+
+function responseError(res: Response, fallback: string, payload?: ErrorPayload | null): Error {
+  const fromBody = firstNonEmptyString(payload?.error, payload?.message);
+  if (fromBody) return new Error(fromBody);
   if (res.status === 503) return new Error("Service is temporarily unavailable. Please try again.");
   if (res.status === 429) return new Error("Too many requests. Please wait and retry.");
-  return new Error(fallback);
+  return new Error(`${fallback} (${res.status})`);
 }
 
 export async function createUser(body: CreateUserBody): Promise<CreateUserResponse> {
@@ -45,12 +59,23 @@ export async function createUser(body: CreateUserBody): Promise<CreateUserRespon
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const data = await readApiPayload<CreateUserResponse & { error?: string }>(res);
-  if (!res.ok || !data?.success) {
-    throw responseError(res, "Could not create account", data);
+  const data = await readApiPayload<CreateUserResponse & ErrorPayload>(res);
+
+  if (!res.ok) {
+    throw responseError(res, "Account creation failed", data);
   }
-  if (!data.userId) throw new Error("Invalid response from server");
-  return data;
+  if (data?.success === false) {
+    throw responseError(res, "Account creation failed", data);
+  }
+  if (!data?.userId) {
+    throw new Error(firstNonEmptyString(data?.error, data?.message) ?? "Invalid response from server");
+  }
+
+  return {
+    userId: data.userId,
+    success: true,
+    created: data.created,
+  };
 }
 
 export async function fetchUserProgress(userId: string): Promise<{ progress: ProgressRow; referralCount: number }> {

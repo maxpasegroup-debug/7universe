@@ -1,4 +1,5 @@
 // https://pris.ly/d/prisma-schema
+// DB URL: set DATABASE_URL in the environment (Prisma Migrate reads it from prisma.config.ts).
 
 generator client {
   provider   = "prisma-client-js"
@@ -13,11 +14,11 @@ datasource db {
 model User {
   id        String   @id @default(uuid()) @db.Uuid
   name      String
-  mobile    String   @unique
+  mobile    String   @unique // one account per mobile
   language  String
   createdAt DateTime @default(now()) @map("created_at")
 
-  progress Progress?
+  progress Progress? // 1:1 — one Progress row per User (userId unique on Progress)
   refereeReferrals Referral[] @relation("ReferralReferee")
   referrerReferrals Referral[] @relation("ReferralReferrer")
 

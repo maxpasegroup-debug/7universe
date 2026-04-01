@@ -2,11 +2,13 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 /**
- * Reuse a single PrismaClient across hot reloads in development.
- * Without this, `next dev` creates new clients on every reload → connection exhaustion.
+ * Single PrismaClient for the whole Node process (dev + production).
+ * Prevents connection pool exhaustion under Next.js hot reload and serverless warm instances.
  * @see https://www.prisma.io/docs/guides/database/troubleshooting-orm/help-articles/nextjs-prisma-client-dev-practices
  */
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
+
+let connectLogged = false;
 
 function createPrismaClient(): PrismaClient {
   const databaseUrl = process.env.DATABASE_URL;
@@ -14,19 +16,35 @@ function createPrismaClient(): PrismaClient {
     throw new Error("DATABASE_URL is required to create PrismaClient");
   }
 
+  if (process.env.NODE_ENV !== "test") {
+    console.info("[prisma] Initializing client (DATABASE_URL is set)");
+  }
+
   const adapter = new PrismaPg({ connectionString: databaseUrl });
-  return new PrismaClient({
+  const client = new PrismaClient({
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
     adapter,
   });
+
+  void client
+    .$connect()
+    .then(() => {
+      if (!connectLogged) {
+        connectLogged = true;
+        console.info("[prisma] Database connection established");
+      }
+    })
+    .catch((err: unknown) => {
+      console.error("[prisma] Initial $connect failed", err);
+    });
+
+  return client;
 }
 
 function getPrismaClient(): PrismaClient {
   if (globalForPrisma.prisma) return globalForPrisma.prisma;
   const client = createPrismaClient();
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma = client;
-  }
+  globalForPrisma.prisma = client;
   return client;
 }
 
