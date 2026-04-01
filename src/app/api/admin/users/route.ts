@@ -1,10 +1,11 @@
 import type { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { getRequestId, logApiError, serverError, unauthorized } from "@/lib/api";
+import { inferCountryFromMobile } from "@/lib/phone";
 import { prisma } from "@/lib/prisma";
 import { isAdminRequest } from "@/lib/auth/require-admin";
 
-const FILTERS = new Set(["all", "completed", "not_completed", "high_intent"]);
+const FILTERS = new Set(["all", "completed", "not_completed", "high_intent", "not_converted"]);
 
 function buildWhere(filter: string): Prisma.UserWhereInput | undefined {
   if (filter === "completed") {
@@ -39,6 +40,11 @@ function buildWhere(filter: string): Prisma.UserWhereInput | undefined {
       },
     };
   }
+  if (filter === "not_converted") {
+    return {
+      OR: [{ progress: null }, { progress: { step3Completed: false } }],
+    };
+  }
   return undefined;
 }
 
@@ -59,12 +65,31 @@ export async function GET(request: Request) {
       where,
       include: {
         progress: true,
+        refereeReferrals: {
+          select: { referrerId: true },
+          take: 1,
+        },
+        _count: {
+          select: { referrerReferrals: true },
+        },
       },
       orderBy: { createdAt: "desc" },
       take: 500,
     });
 
-    return NextResponse.json({ users });
+    return NextResponse.json({
+      users: users.map((u) => ({
+        id: u.id,
+        name: u.name,
+        mobile: u.mobile,
+        country: inferCountryFromMobile(u.mobile),
+        language: u.language,
+        createdAt: u.createdAt,
+        progress: u.progress,
+        referralCount: u._count.referrerReferrals,
+        referrerId: u.refereeReferrals[0]?.referrerId ?? null,
+      })),
+    });
   } catch (e) {
     logApiError("GET /api/admin/users", e, requestId);
     return serverError("Query failed", requestId);

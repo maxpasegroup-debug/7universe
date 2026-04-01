@@ -3,16 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
-  fetchAppSettings,
+  fetchOnboardingJourney,
   fetchUserProgress,
-  postUserProgress,
+  postUserStepComplete,
+  type JourneyStep,
   type ProgressRow,
 } from "@/lib/api/user-client";
 import { getAppPublicUrl } from "@/lib/app-url";
-import { JOIN_EXTERNAL_URL } from "@/lib/constants";
-import { getCopy, getMediaForLanguage, resolveLanguage, type LanguageCode } from "@/lib/i18n";
-import { mediaFromPublicSettings, type PublicAppSettings } from "@/lib/media-public-settings";
+import { getCopy, resolveLanguage } from "@/lib/i18n";
 import { getStoredLanguage, getStoredProfile } from "@/lib/storage";
+import { youtubeEmbedId } from "@/lib/youtube";
 import { ChatbotFAB } from "@/components/dashboard/ChatbotFAB";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { FloatingWhatsAppBar } from "@/components/dashboard/FloatingWhatsAppBar";
@@ -23,69 +23,63 @@ import { MarkStepButton } from "@/components/ui/MarkStepButton";
 import { PdfModal } from "@/components/ui/PdfModal";
 import { VideoEmbed } from "@/components/ui/VideoEmbed";
 
-function getLangSnapshot(): LanguageCode {
+function getLangSnapshot(): string {
   return resolveLanguage(getStoredLanguage());
 }
 
-function getLangServerSnapshot(): LanguageCode {
+function getLangServerSnapshot(): string {
   return "en";
 }
 
-type SavingKey = "s1" | "s2" | "s3" | null;
+function isStepUnlocked(steps: JourneyStep[], completed: Set<string>, index: number): boolean {
+  for (let i = 0; i < index; i++) {
+    const p = steps[i];
+    if ((p.kind === "video" || p.kind === "pdf") && !completed.has(p.id)) return false;
+  }
+  return true;
+}
+
+function trackerCompleted(steps: JourneyStep[], completed: Set<string>): boolean[] {
+  return steps.map((s, i) => {
+    if (s.kind === "video" || s.kind === "pdf") return completed.has(s.id);
+    return isStepUnlocked(steps, completed, i);
+  });
+}
 
 export function DashboardClient() {
   const router = useRouter();
   const lang = useSyncExternalStore(() => () => {}, getLangSnapshot, getLangServerSnapshot);
-  const baseCopy = getCopy(lang);
+  const c = getCopy(lang);
 
   const stored = useMemo(() => getStoredProfile(), []);
-  const [publicSettings, setPublicSettings] = useState<PublicAppSettings | null>(null);
+  const [steps, setSteps] = useState<JourneyStep[]>([]);
   const [progress, setProgress] = useState<ProgressRow | null>(null);
   const [referralCount, setReferralCount] = useState(0);
 
-  const [s1, setS1] = useState(false);
-  const [s2, setS2] = useState(false);
-  const [s3, setS3] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [saving, setSaving] = useState<SavingKey>(null);
+  const [savingStepId, setSavingStepId] = useState<string | null>(null);
   const [pdfOpen, setPdfOpen] = useState(false);
+  const [pdfTitle, setPdfTitle] = useState("");
+  const [pdfUrl, setPdfUrl] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const c = baseCopy;
-
-  const media = useMemo(() => {
-    if (publicSettings) return mediaFromPublicSettings(publicSettings);
-    return getMediaForLanguage(lang);
-  }, [publicSettings, lang]);
-
-  const joinLink = publicSettings?.joinLink?.trim() || JOIN_EXTERNAL_URL;
-
-  const canStep2 = s1;
-  const canStep3 = s1 && s2;
-  const canStep4 = s1 && s2 && s3;
-
-  const progressComplete: [boolean, boolean, boolean, boolean] = [s1, s2, s3, canStep4];
+  const completed = useMemo(() => new Set(progress?.completedStepIds ?? []), [progress]);
 
   const errorLoadMsg = c.dashboard.errorLoad;
 
   const load = useCallback(async () => {
     if (!stored?.id || !stored.mobile) return;
     try {
-      const [progRes, settingsRes] = await Promise.all([
+      const [journey, progRes] = await Promise.all([
+        fetchOnboardingJourney(lang),
         fetchUserProgress(stored.id),
-        fetchAppSettings(lang).catch(() => null),
       ]);
 
+      const ordered = [...journey.steps].sort((a, b) => a.sortOrder - b.sortOrder);
+      setSteps(ordered);
       setProgress(progRes.progress);
       setReferralCount(progRes.referralCount);
-      setS1(progRes.progress.step1Completed);
-      setS2(progRes.progress.step2Completed);
-      setS3(progRes.progress.step3Completed);
       setLoadError(null);
-
-      if (settingsRes) {
-        setPublicSettings(settingsRes);
-      }
     } catch {
       setLoadError(errorLoadMsg);
     }
@@ -99,25 +93,22 @@ export function DashboardClient() {
     void load();
   }, [stored?.id, router, load]);
 
-  async function saveStep(key: SavingKey, step: 1 | 2 | 3) {
+  async function saveStepId(stepId: string) {
     if (!stored?.id) return;
-    setSaving(key);
+    setSavingStepId(stepId);
     setLoadError(null);
     try {
-      const row = await postUserProgress(stored.id, step);
+      const row = await postUserStepComplete(stored.id, stepId);
       setProgress(row);
-      setS1(row.step1Completed);
-      setS2(row.step2Completed);
-      setS3(row.step3Completed);
     } catch {
       setLoadError(c.dashboard.errorSave);
     } finally {
-      setSaving(null);
+      setSavingStepId(null);
     }
   }
 
-  function scrollToStep1() {
-    document.getElementById("step-1")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  function scrollToFirstStep() {
+    document.getElementById("step-0")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   const referralUrl = stored?.id ? `${getAppPublicUrl()}?ref=${encodeURIComponent(stored.id)}` : "";
@@ -146,6 +137,9 @@ export function DashboardClient() {
     }
   }
 
+  const trackerLabels = steps.map((s) => s.title);
+  const trackerDone = trackerCompleted(steps, completed);
+
   return (
     <>
       <DashboardHeader />
@@ -165,7 +159,7 @@ export function DashboardClient() {
             </span>
           </div>
           <div className="mt-8">
-            <GlowButton type="button" onClick={scrollToStep1} className="w-full max-w-xs sm:w-auto">
+            <GlowButton type="button" onClick={scrollToFirstStep} className="w-full max-w-xs sm:w-auto">
               {c.dashboard.activateCta}
             </GlowButton>
           </div>
@@ -201,12 +195,14 @@ export function DashboardClient() {
           </section>
         )}
 
-        <div>
-          <h2 className="font-display mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-amber-200/80">
-            {c.dashboard.progressTitle}
-          </h2>
-          <ProgressTracker labels={c.dashboard.progressSteps} completed={progressComplete} />
-        </div>
+        {steps.length > 0 && (
+          <div>
+            <h2 className="font-display mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-amber-200/80">
+              {c.dashboard.progressTitle}
+            </h2>
+            <ProgressTracker labels={trackerLabels} completed={trackerDone} />
+          </div>
+        )}
 
         {loadError && (
           <p className="rounded-xl border border-red-500/30 bg-red-950/40 px-4 py-3 text-sm text-red-200" role="alert">
@@ -214,115 +210,96 @@ export function DashboardClient() {
           </p>
         )}
 
-        <div id="step-1" className="scroll-mt-28 space-y-8">
-          <StepCard
-            title={c.dashboard.step1Title}
-            stepNumber={1}
-            done={s1}
-            doneLabel={c.dashboard.stepDone}
-            actions={
-              <MarkStepButton
-                loading={saving === "s1"}
-                disabled={s1}
-                onClick={() => void saveStep("s1", 1)}
-              >
-                {saving === "s1" ? c.dashboard.saving : c.dashboard.step1Action}
-              </MarkStepButton>
-            }
-          >
-            <VideoEmbed videoId={media.orientationVideoId} title={c.dashboard.step1Title} />
-          </StepCard>
+        <div className="scroll-mt-28 space-y-8">
+          {steps.map((step, index) => {
+            const unlocked = isStepUnlocked(steps, completed, index);
+            const done = (step.kind === "video" || step.kind === "pdf") && completed.has(step.id);
 
-          <StepCard
-            title={c.dashboard.step2Title}
-            stepNumber={2}
-            done={s2}
-            doneLabel={c.dashboard.stepDone}
-            actions={
-              <>
-                <button
-                  type="button"
-                  disabled={!canStep2}
-                  onClick={() => canStep2 && setPdfOpen(true)}
-                  className="inline-flex min-h-11 items-center justify-center rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-2.5 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+            return (
+              <div key={step.id} id={`step-${index}`} className="scroll-mt-28">
+                <StepCard
+                  title={step.title}
+                  stepNumber={index + 1}
+                  done={done}
+                  doneLabel={c.dashboard.stepDone}
+                  actions={
+                    <>
+                      {step.kind === "pdf" && step.pdfUrl && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={!unlocked}
+                            onClick={() => {
+                              if (!unlocked) return;
+                              setPdfTitle(step.title);
+                              setPdfUrl(step.pdfUrl!);
+                              setPdfOpen(true);
+                            }}
+                            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-amber-500/35 bg-amber-500/10 px-4 py-2.5 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            {c.dashboard.step2ViewPdf}
+                          </button>
+                          <a
+                            href={step.pdfUrl}
+                            download
+                            onClick={(e) => {
+                              if (!unlocked) e.preventDefault();
+                            }}
+                            className={`inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-600 bg-slate-900/60 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:bg-slate-800 ${
+                              !unlocked ? "pointer-events-none opacity-40" : ""
+                            }`}
+                          >
+                            {c.dashboard.step2Download}
+                          </a>
+                        </>
+                      )}
+                      {(step.kind === "video" || step.kind === "pdf") && (
+                        <MarkStepButton
+                          loading={savingStepId === step.id}
+                          disabled={done || !unlocked}
+                          onClick={() => void saveStepId(step.id)}
+                        >
+                          {savingStepId === step.id ? c.dashboard.saving : c.dashboard.markStepComplete}
+                        </MarkStepButton>
+                      )}
+                      {step.kind === "action" && step.actionUrl && (
+                        <>
+                          {unlocked ? (
+                            <a
+                              href={step.actionUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="glow-gold inline-flex w-full max-w-lg items-center justify-center rounded-xl border border-amber-400/40 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 px-6 py-4 text-center text-lg font-semibold text-black shadow-lg hover:brightness-110 sm:text-xl"
+                            >
+                              {step.title?.trim() || c.dashboard.joinCta}
+                            </a>
+                          ) : (
+                            <div className="w-full max-w-lg rounded-2xl border border-slate-700/80 bg-slate-950/60 px-4 py-4 text-center text-sm text-slate-500">
+                              {c.dashboard.step4Locked}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </>
+                  }
                 >
-                  {c.dashboard.step2ViewPdf}
-                </button>
-                <a
-                  href={media.earningPdfUrl}
-                  download
-                  onClick={(e) => {
-                    if (!canStep2) e.preventDefault();
-                  }}
-                  className={`inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-600 bg-slate-900/60 px-4 py-2.5 text-sm font-semibold text-slate-100 transition hover:bg-slate-800 ${
-                    !canStep2 ? "pointer-events-none opacity-40" : ""
-                  }`}
-                >
-                  {c.dashboard.step2Download}
-                </a>
-                <MarkStepButton
-                  loading={saving === "s2"}
-                  disabled={s2 || !canStep2}
-                  onClick={() => void saveStep("s2", 2)}
-                >
-                  {saving === "s2" ? c.dashboard.saving : c.dashboard.step2Action}
-                </MarkStepButton>
-              </>
-            }
-          >
-            {!canStep2 && <p className="text-xs text-slate-500">{c.dashboard.completePrevious}</p>}
-          </StepCard>
-
-          <StepCard
-            title={c.dashboard.step3Title}
-            stepNumber={3}
-            done={s3}
-            doneLabel={c.dashboard.stepDone}
-            actions={
-              <MarkStepButton
-                loading={saving === "s3"}
-                disabled={s3 || !canStep3}
-                onClick={() => void saveStep("s3", 3)}
-              >
-                {saving === "s3" ? c.dashboard.saving : c.dashboard.step3Action}
-              </MarkStepButton>
-            }
-          >
-            {!canStep3 && <p className="text-xs text-slate-500">{c.dashboard.completePrevious}</p>}
-            <VideoEmbed videoId={media.businessVideoId} title={c.dashboard.step3Title} />
-          </StepCard>
-
-          <StepCard
-            title={c.dashboard.step4Title}
-            stepNumber={4}
-            done={false}
-            doneLabel={c.dashboard.stepDone}
-            actions={
-              canStep4 ? (
-                <a
-                  href={joinLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="glow-gold inline-flex w-full max-w-lg items-center justify-center rounded-xl border border-amber-400/40 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 px-6 py-4 text-center text-lg font-semibold text-black shadow-lg hover:brightness-110 sm:text-xl"
-                >
-                  {c.dashboard.joinCta}
-                </a>
-              ) : (
-                <div className="w-full max-w-lg rounded-2xl border border-slate-700/80 bg-slate-950/60 px-4 py-4 text-center text-sm text-slate-500">
-                  {c.dashboard.step4Locked}
-                </div>
-              )
-            }
-          >
-            {!canStep4 && <p className="text-xs text-slate-500">{c.dashboard.completePrevious}</p>}
-          </StepCard>
+                  {!unlocked && (step.kind === "video" || step.kind === "pdf" || step.kind === "action") && (
+                    <p className="text-xs text-slate-500">{c.dashboard.completePrevious}</p>
+                  )}
+                  {step.kind === "video" && step.videoUrl && (
+                    <VideoEmbed videoId={youtubeEmbedId(step.videoUrl)} title={step.title} />
+                  )}
+                </StepCard>
+              </div>
+            );
+          })}
         </div>
       </div>
 
       <PdfModal
         open={pdfOpen}
-        title={c.dashboard.step2Title}
-        pdfUrl={media.earningPdfUrl}
+        title={pdfTitle}
+        pdfUrl={pdfUrl}
         onClose={() => setPdfOpen(false)}
         closeLabel={c.dashboard.closeModal}
       />

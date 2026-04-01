@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import type { LanguageCode } from "@/lib/i18n";
 import { getCopy } from "@/lib/i18n";
 
 type Props = {
-  language: LanguageCode;
+  language: string;
 };
 
 export function ChatbotFAB({ language }: Props) {

@@ -2,12 +2,7 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { badRequest, getRequestId, logApiError, notFound, serverError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
-import {
-  isLanguageCode,
-  isValidInternationalMobile,
-  isUuid,
-  normalizeInternationalMobile,
-} from "@/lib/validation";
+import { isValidInternationalMobile, isUuid, normalizeInternationalMobile } from "@/lib/validation";
 
 type Body = {
   name?: string;
@@ -116,8 +111,15 @@ export async function POST(request: Request) {
   if (!isValidInternationalMobile(mobile)) {
     return badRequest("Invalid number", requestId);
   }
-  if (!isLanguageCode(language)) {
-    return badRequest("Language must be en, ml, or ta", requestId);
+  if (!language) {
+    return badRequest("Language is required", requestId);
+  }
+  const langNorm = language.toLowerCase();
+  const langRow = await prisma.language.findFirst({
+    where: { code: langNorm, isActive: true },
+  });
+  if (!langRow) {
+    return badRequest("Invalid or inactive language", requestId);
   }
 
   let resolvedReferrerId: string | undefined;
@@ -163,7 +165,7 @@ export async function POST(request: Request) {
         data: {
           name,
           mobile,
-          language,
+          language: langRow.code,
         },
       });
 

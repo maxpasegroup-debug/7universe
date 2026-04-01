@@ -78,6 +78,8 @@ export type Copy = {
     referralCountLabel: string;
     leadScoreLabel: string;
     shareLink: string;
+    markStepComplete: string;
+    openLink: string;
   };
   faq: { q: string; a: string }[];
 };
@@ -141,6 +143,8 @@ const copy: Record<LanguageCode, Copy> = {
       referralCountLabel: "Successful referrals",
       leadScoreLabel: "Lead score",
       shareLink: "Share",
+      markStepComplete: "Mark as complete",
+      openLink: "Open link",
     },
     faq: [
       {
@@ -215,6 +219,8 @@ const copy: Record<LanguageCode, Copy> = {
       referralCountLabel: "വിജയകരമായ റഫറലുകൾ",
       leadScoreLabel: "ലീഡ് സ്കോർ",
       shareLink: "പങ്കിടുക",
+      markStepComplete: "പൂർത്തിയാക്കിയതായി അടയാളപ്പെടുത്തുക",
+      openLink: "ലിങ്ക് തുറക്കുക",
     },
     faq: [
       {
@@ -289,6 +295,8 @@ const copy: Record<LanguageCode, Copy> = {
       referralCountLabel: "வெற்றிகரமான பரிந்துரைகள்",
       leadScoreLabel: "முன்னணி மதிப்பெண்",
       shareLink: "பகிர்",
+      markStepComplete: "முடித்ததாகக் குறி",
+      openLink: "இணைப்பைத் திற",
     },
     faq: [
       {
@@ -307,14 +315,17 @@ const copy: Record<LanguageCode, Copy> = {
   },
 };
 
-export function getCopy(lang: LanguageCode): Copy {
-  return copy[lang];
+export function getCopy(lang: string): Copy {
+  if (lang === "ml") return copy.ml;
+  if (lang === "ta") return copy.ta;
+  return copy.en;
 }
 
 export function getMediaForLanguage(lang: LanguageCode) {
   return MEDIA[lang];
 }
 
-export function resolveLanguage(stored: LanguageCode | null): LanguageCode {
-  return stored ?? "en";
+export function resolveLanguage(stored: string | null): string {
+  const code = stored?.trim().toLowerCase() ?? "";
+  return code.length > 0 ? code : "en";
 }

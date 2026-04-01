@@ -20,6 +20,17 @@ export type ProgressRow = {
   step2Completed: boolean;
   step3Completed: boolean;
   score: number;
+  completedStepIds: string[];
+};
+
+export type JourneyStep = {
+  id: string;
+  title: string;
+  kind: "video" | "pdf" | "action";
+  sortOrder: number;
+  videoUrl: string | null;
+  pdfUrl: string | null;
+  actionUrl: string | null;
 };
 
 async function readApiPayload<T>(res: Response): Promise<T | null> {
@@ -90,9 +101,33 @@ export async function fetchUserProgress(userId: string): Promise<{ progress: Pro
   if (!res.ok || !data?.progress) {
     throw responseError(res, "Could not load progress", data);
   }
+  const progress = data.progress;
   return {
-    progress: data.progress,
+    progress: {
+      ...progress,
+      completedStepIds: Array.isArray(progress.completedStepIds) ? progress.completedStepIds : [],
+    },
     referralCount: typeof data.referralCount === "number" ? data.referralCount : 0,
+  };
+}
+
+export async function fetchOnboardingJourney(language: string): Promise<{
+  language: { id: string; name: string; code: string };
+  steps: JourneyStep[];
+}> {
+  const q = new URLSearchParams({ language });
+  const res = await fetch(`/api/onboarding/journey?${q}`, { cache: "no-store" });
+  const data = await readApiPayload<{
+    language?: { id: string; name: string; code: string };
+    steps?: JourneyStep[];
+    error?: string;
+  }>(res);
+  if (!res.ok || !data?.steps?.length) {
+    throw responseError(res, "Could not load journey", data);
+  }
+  return {
+    language: data.language as { id: string; name: string; code: string },
+    steps: data.steps,
   };
 }
 
@@ -106,7 +141,28 @@ export async function postUserProgress(userId: string, step: 1 | 2 | 3): Promise
   if (!res.ok || !data?.progress) {
     throw responseError(res, "Could not save progress", data);
   }
-  return data.progress;
+  const p = data.progress;
+  return {
+    ...p,
+    completedStepIds: Array.isArray(p.completedStepIds) ? p.completedStepIds : [],
+  };
+}
+
+export async function postUserStepComplete(userId: string, stepId: string): Promise<ProgressRow> {
+  const res = await fetch("/api/user/progress", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, stepId }),
+  });
+  const data = await readApiPayload<{ progress?: ProgressRow; error?: string }>(res);
+  if (!res.ok || !data?.progress) {
+    throw responseError(res, "Could not save progress", data);
+  }
+  const p = data.progress;
+  return {
+    ...p,
+    completedStepIds: Array.isArray(p.completedStepIds) ? p.completedStepIds : [],
+  };
 }
 
 export async function fetchAppSettings(language: string): Promise<PublicAppSettings> {

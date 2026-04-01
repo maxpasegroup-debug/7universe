@@ -1,6 +1,6 @@
 type Props = {
-  labels: [string, string, string, string];
-  completed: [boolean, boolean, boolean, boolean];
+  labels: string[];
+  completed: boolean[];
 };
 
 export function ProgressTracker({ labels, completed }: Props) {
@@ -8,10 +8,13 @@ export function ProgressTracker({ labels, completed }: Props) {
     <div className="rounded-2xl border border-amber-500/15 bg-slate-950/50 p-4 sm:p-5">
       <ol className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
         {labels.map((label, i) => {
-          const done = completed[i];
+          const done = completed[i] ?? false;
           const isLast = i === labels.length - 1;
           return (
-            <li key={label} className="relative flex flex-1 flex-col items-center gap-2 text-center sm:min-w-0">
+            <li
+              key={`${label}-${i}`}
+              className="relative flex flex-1 flex-col items-center gap-2 text-center sm:min-w-0"
+            >
               {!isLast && (
                 <div
                   className="absolute left-[calc(50%+1.25rem)] top-5 hidden h-0.5 w-[calc(100%-2.5rem)] bg-slate-800 sm:block"

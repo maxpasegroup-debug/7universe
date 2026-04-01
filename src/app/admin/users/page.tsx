@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toWhatsAppDigits } from "@/lib/phone";
 
 type ProgressRow = {
   id: string;
@@ -15,14 +16,18 @@ type UserRow = {
   id: string;
   name: string;
   mobile: string;
+  country: string;
   language: string;
   createdAt: string;
   progress: ProgressRow | null;
+  referralCount: number;
+  referrerId: string | null;
 };
 
 const filters = [
   { value: "all", label: "All" },
   { value: "completed", label: "Completed (all steps)" },
+  { value: "not_converted", label: "Not converted" },
   { value: "not_completed", label: "Not completed" },
   { value: "high_intent", label: "High intent (step 3)" },
 ] as const;
@@ -81,9 +86,13 @@ export default function AdminUsersPage() {
             <tr>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Mobile</th>
+              <th className="px-4 py-3">Country</th>
               <th className="px-4 py-3">Lang</th>
               <th className="px-4 py-3">Steps</th>
               <th className="px-4 py-3">Score</th>
+              <th className="px-4 py-3">Referrals</th>
+              <th className="px-4 py-3">Referrer</th>
+              <th className="px-4 py-3">WhatsApp</th>
               <th className="px-4 py-3">Created</th>
             </tr>
           </thead>
@@ -94,6 +103,7 @@ export default function AdminUsersPage() {
                 <tr key={u.id} className="border-b border-slate-800/80">
                   <td className="px-4 py-3 font-medium text-slate-100">{u.name}</td>
                   <td className="px-4 py-3">{u.mobile}</td>
+                  <td className="px-4 py-3">{u.country}</td>
                   <td className="px-4 py-3">{u.language}</td>
                   <td className="px-4 py-3">
                     {p ? (
@@ -106,6 +116,18 @@ export default function AdminUsersPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-amber-200">{p?.score ?? "—"}</td>
+                  <td className="px-4 py-3">{u.referralCount}</td>
+                  <td className="px-4 py-3 text-xs text-slate-400">{u.referrerId ?? "—"}</td>
+                  <td className="px-4 py-3">
+                    <a
+                      href={`https://wa.me/${toWhatsAppDigits(u.mobile)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-md border border-amber-500/30 px-2 py-1 text-xs text-amber-200 hover:bg-amber-500/10"
+                    >
+                      Chat
+                    </a>
+                  </td>
                   <td className="px-4 py-3 text-xs text-slate-500">
                     {new Date(u.createdAt).toLocaleString()}
                   </td>

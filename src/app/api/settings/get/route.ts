@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRequestId, logApiError, notFound, serverError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
-import { isLanguageCode } from "@/lib/validation";
 
 const DEFAULT_LANGUAGE = "en";
 
@@ -10,9 +9,13 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const raw = searchParams.get("language");
   const normalized = raw !== null && raw.trim() !== "" ? raw.trim().toLowerCase() : DEFAULT_LANGUAGE;
-  const requested = isLanguageCode(normalized) ? normalized : DEFAULT_LANGUAGE;
 
   try {
+    const langOk = await prisma.language.findFirst({
+      where: { code: normalized, isActive: true },
+    });
+    const requested = langOk ? normalized : DEFAULT_LANGUAGE;
+
     let row = await prisma.appSettings.findUnique({
       where: { language: requested },
     });

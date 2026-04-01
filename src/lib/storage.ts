@@ -1,5 +1,3 @@
-import type { LanguageCode } from "./i18n";
-
 export const STORAGE_KEYS = {
   LANGUAGE: "7universe-language",
   USER: "7universe-user",
@@ -21,15 +19,15 @@ export type StoredProfile = {
   mobile: string;
 };
 
-export function getStoredLanguage(): LanguageCode | null {
+export function getStoredLanguage(): string | null {
   if (typeof window === "undefined") return null;
-  const v = window.localStorage.getItem(STORAGE_KEYS.LANGUAGE);
-  if (v === "en" || v === "ml" || v === "ta") return v;
-  return null;
+  const v = window.localStorage.getItem(STORAGE_KEYS.LANGUAGE)?.trim().toLowerCase();
+  if (!v || v.length > 24) return null;
+  return v;
 }
 
-export function setStoredLanguage(code: LanguageCode): void {
-  window.localStorage.setItem(STORAGE_KEYS.LANGUAGE, code);
+export function setStoredLanguage(code: string): void {
+  window.localStorage.setItem(STORAGE_KEYS.LANGUAGE, code.trim().toLowerCase());
 }
 
 export function getStoredProfile(): StoredProfile | null {

@@ -1,18 +1,37 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SpaceBackground } from "@/components/layout/SpaceBackground";
 import { GlowButton } from "@/components/ui/GlowButton";
 import { Logo } from "@/components/ui/Logo";
-import { getCopy, LANGUAGE_OPTIONS, type LanguageCode } from "@/lib/i18n";
+import { getCopy, LANGUAGE_OPTIONS } from "@/lib/i18n";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/storage";
+
+type LangOpt = { code: string; name: string };
 
 export default function LanguagePage() {
   const router = useRouter();
+  const [options, setOptions] = useState<LangOpt[]>([]);
   const initial = getStoredLanguage() ?? "en";
-  const [selected, setSelected] = useState<LanguageCode>(initial);
+  const [selected, setSelected] = useState(initial);
   const c = getCopy(selected);
+
+  useEffect(() => {
+    void fetch("/api/public/languages")
+      .then((r) => r.json())
+      .then((d: { languages?: { code: string; name: string }[] }) => {
+        if (Array.isArray(d.languages) && d.languages.length > 0) {
+          setOptions(d.languages.map((l) => ({ code: l.code, name: l.name })));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const display: LangOpt[] =
+    options.length > 0
+      ? options
+      : LANGUAGE_OPTIONS.map((o) => ({ code: o.code, name: o.label }));
 
   function handleContinue() {
     setStoredLanguage(selected);
@@ -31,7 +50,7 @@ export default function LanguagePage() {
         <p className="mt-2 text-center text-sm text-slate-400">{c.language.subtitle}</p>
 
         <div className="mt-10 space-y-3" role="radiogroup" aria-label={c.language.title}>
-          {LANGUAGE_OPTIONS.map((opt) => {
+          {display.map((opt) => {
             const active = selected === opt.code;
             return (
               <button
@@ -46,7 +65,7 @@ export default function LanguagePage() {
                     : "border-slate-700/80 bg-slate-950/40 hover:border-slate-600"
                 }`}
               >
-                <span className="text-base font-medium text-slate-100">{opt.label}</span>
+                <span className="text-base font-medium text-slate-100">{opt.name}</span>
                 <span
                   className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
                     active ? "border-amber-400 bg-amber-400/20" : "border-slate-600"

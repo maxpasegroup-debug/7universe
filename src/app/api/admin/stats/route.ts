@@ -10,8 +10,29 @@ export async function GET() {
   }
 
   try {
-    const [totalUsers, completedUsers, highIntentUsers] = await Promise.all([
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const [
+      totalUsers,
+      todaySignups,
+      step1Completed,
+      step2Completed,
+      step3Completed,
+      completedUsers,
+      highIntentUsers,
+    ] = await Promise.all([
       prisma.user.count(),
+      prisma.user.count({
+        where: {
+          createdAt: {
+            gte: startOfToday,
+          },
+        },
+      }),
+      prisma.progress.count({ where: { step1Completed: true } }),
+      prisma.progress.count({ where: { step2Completed: true } }),
+      prisma.progress.count({ where: { step3Completed: true } }),
       prisma.progress.count({
         where: {
           step1Completed: true,
@@ -24,8 +45,16 @@ export async function GET() {
 
     return NextResponse.json({
       totalUsers,
+      todaySignups,
       completedUsers,
       highIntentUsers,
+      funnel: {
+        totalUsers,
+        step1Completed,
+        step2Completed,
+        step3Completed,
+        completedUsers,
+      },
     });
   } catch (e) {
     logApiError("admin/stats", e, requestId);

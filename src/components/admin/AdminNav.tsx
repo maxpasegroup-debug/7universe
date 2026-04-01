@@ -5,7 +5,11 @@ import { usePathname } from "next/navigation";
 
 const links = [
   { href: "/admin", label: "Overview" },
-  { href: "/admin/content", label: "Content" },
+  { href: "/admin/languages", label: "Languages" },
+  { href: "/admin/content", label: "Videos" },
+  { href: "/admin/materials", label: "Materials" },
+  { href: "/admin/steps", label: "Steps" },
+  { href: "/admin/legacy-settings", label: "Legacy" },
   { href: "/admin/users", label: "Users" },
 ];
 
@@ -19,7 +23,7 @@ export function AdminNav() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-amber-500/20 bg-slate-950/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <span className="font-display text-lg font-bold tracking-tight text-amber-200">7Universe Admin</span>
         <nav className="flex flex-wrap items-center gap-1">
           {links.map((l) => {

@@ -10,12 +10,98 @@ datasource db {
   provider = "postgresql"
 }
 
+enum ContentCategory {
+  orientation
+  training
+  advanced
+}
+
+enum MaterialKind {
+  pdf
+  link
+}
+
+enum StepKind {
+  video
+  pdf
+  action
+}
+
+/// CMS: supported app languages (dynamic).
+model Language {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  code      String   @unique
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  contents  Content[]
+  materials Material[]
+  steps     Step[]
+
+  @@map("languages")
+}
+
+/// CMS: video library per language (orientation / training / advanced).
+model Content {
+  id         String          @id @default(uuid()) @db.Uuid
+  languageId String          @map("language_id") @db.Uuid
+  language   Language        @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  contentType ContentCategory @map("type")
+  title      String
+  videoUrl   String          @map("video_url")
+  sortOrder  Int             @default(0) @map("sort_order")
+
+  steps Step[]
+
+  @@index([languageId, contentType])
+  @@map("cms_contents")
+}
+
+/// CMS: documents or external links per language.
+model Material {
+  id         String       @id @default(uuid()) @db.Uuid
+  languageId String       @map("language_id") @db.Uuid
+  language   Language     @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  title      String
+  fileUrl    String       @map("file_url")
+  materialType MaterialKind @map("type")
+
+  steps Step[]
+
+  @@index([languageId])
+  @@map("cms_materials")
+}
+
+/// CMS: ordered onboarding steps (video / pdf / action).
+model Step {
+  id         String    @id @default(uuid()) @db.Uuid
+  languageId String    @map("language_id") @db.Uuid
+  language   Language  @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  title      String
+  stepType   StepKind  @map("type")
+  sortOrder  Int       @default(0) @map("sort_order")
+
+  contentId String? @map("content_id") @db.Uuid
+  content   Content? @relation(fields: [contentId], references: [id], onDelete: SetNull)
+
+  materialId String?   @map("material_id") @db.Uuid
+  material   Material? @relation(fields: [materialId], references: [id], onDelete: SetNull)
+
+  /** External URL for `action` steps (e.g. join link). */
+  actionUrl String? @map("action_url")
+
+  @@index([languageId, sortOrder])
+  @@map("cms_steps")
+}
+
 /// End-user profile (onboarding signup).
 model User {
   id        String   @id @default(uuid()) @db.Uuid
   name      String
   mobile    String   @unique // one account per mobile
-  language  String
+  language  String // matches Language.code
   createdAt DateTime @default(now()) @map("created_at")
 
   progress Progress? // 1:1 — one Progress row per User (userId unique on Progress)
@@ -35,10 +121,13 @@ model Progress {
   step3Completed Boolean  @default(false) @map("step3_completed")
   score          Int      @default(0)
 
+  /// UUIDs of completed CMS steps (`cms_steps.id`) for video/pdf kinds.
+  completedStepIds String[] @default([]) @map("completed_step_ids")
+
   @@map("progress")
 }
 
-/// CMS row per language (e.g. en, ml, ta).
+/// CMS row per language (e.g. en, ml, ta). Legacy; optional fallback when CMS empty.
 model AppSettings {
   id            String @id @default(uuid()) @db.Uuid
   language      String
