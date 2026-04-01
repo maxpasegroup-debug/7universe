@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { generateUniqueReferralCode } from "@/lib/referral-code";
 import { computeLeadScore, isHighIntent } from "@/lib/lead-score";
 import { sendExpertConnectMessage } from "@/lib/whatsapp";
-import { isValidMobile10, normalizeMobile } from "@/lib/validation";
+import { isValidInternationalMobile, mobilesEqual, normalizeInternationalMobile } from "@/lib/validation";
 import type { OnboardingProfilePublic, OnboardingProfileRow } from "@/types/onboarding";
 
 const SELECT_FIELDS =
@@ -18,9 +18,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Missing id or mobile" }, { status: 400 });
   }
 
-  const m = normalizeMobile(mobile);
-  if (!isValidMobile10(m)) {
-    return NextResponse.json({ error: "Invalid mobile" }, { status: 400 });
+  const m = normalizeInternationalMobile(typeof mobile === "string" ? mobile : "");
+  if (!isValidInternationalMobile(m)) {
+    return NextResponse.json({ error: "Invalid number" }, { status: 400 });
   }
 
   try {
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     if (!data) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    if (data.mobile !== m) {
+    if (!mobilesEqual(data.mobile, m)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -85,9 +85,9 @@ export async function PATCH(request: Request) {
   }
 
   const id = typeof body.id === "string" ? body.id : "";
-  const mobile = typeof body.mobile === "string" ? normalizeMobile(body.mobile) : "";
+  const mobile = typeof body.mobile === "string" ? normalizeInternationalMobile(body.mobile) : "";
 
-  if (!id || !isValidMobile10(mobile)) {
+  if (!id || !isValidInternationalMobile(mobile)) {
     return NextResponse.json({ error: "Invalid id or mobile" }, { status: 400 });
   }
 
@@ -118,7 +118,7 @@ export async function PATCH(request: Request) {
     if (fetchErr || !row) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    if (row.mobile !== mobile) {
+    if (!mobilesEqual(row.mobile, mobile)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

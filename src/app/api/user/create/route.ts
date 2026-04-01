@@ -2,7 +2,12 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { badRequest, getRequestId, logApiError, notFound, serverError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
-import { isLanguageCode, isValidMobile10, isUuid, normalizeMobile } from "@/lib/validation";
+import {
+  isLanguageCode,
+  isValidInternationalMobile,
+  isUuid,
+  normalizeInternationalMobile,
+} from "@/lib/validation";
 
 type Body = {
   name?: string;
@@ -11,9 +16,19 @@ type Body = {
   referrerId?: string | null;
 };
 
-function maskMobile(digits: string): string {
-  if (digits.length <= 4) return "****";
-  return `***${digits.slice(-4)}`;
+function maskE164(e164: string): string {
+  const d = e164.replace(/\D/g, "");
+  if (d.length <= 4) return "****";
+  return `***${d.slice(-4)}`;
+}
+
+function isMissingTableError(e: unknown): boolean {
+  if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2021") return true;
+  const msg = e instanceof Error ? e.message : String(e);
+  return (
+    /does not exist/i.test(msg) &&
+    (/public\.users|"users"|'users'|relation.*users|\busers\b/i.test(msg) || /\btable\b/i.test(msg))
+  );
 }
 
 function isConnectionFailure(e: unknown): boolean {
@@ -26,6 +41,9 @@ function isConnectionFailure(e: unknown): boolean {
 }
 
 function clientFacingDbMessage(e: unknown): string {
+  if (isMissingTableError(e)) {
+    return "Database not initialized";
+  }
   if (isConnectionFailure(e)) {
     return "Database connection failed";
   }
@@ -80,22 +98,23 @@ export async function POST(request: Request) {
   }
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
-  const mobile = typeof body.mobile === "string" ? normalizeMobile(body.mobile) : "";
+  const mobile =
+    typeof body.mobile === "string" ? normalizeInternationalMobile(body.mobile) : "";
   const language = typeof body.language === "string" ? body.language.trim() : "";
   const referrerIdRaw = body.referrerId;
 
   console.log(`[POST /api/user/create] Request body requestId=${requestId}`, {
     namePreview: name.slice(0, 80),
     language,
-    mobileMasked: mobile ? maskMobile(mobile) : "(empty)",
+    mobileMasked: mobile ? maskE164(mobile) : "(empty)",
     referrerPresent: referrerIdRaw != null && String(referrerIdRaw).trim() !== "",
   });
 
   if (!name) {
     return badRequest("Name is required", requestId);
   }
-  if (!isValidMobile10(mobile)) {
-    return badRequest("Mobile must be a valid 10-digit number", requestId);
+  if (!isValidInternationalMobile(mobile)) {
+    return badRequest("Invalid number", requestId);
   }
   if (!isLanguageCode(language)) {
     return badRequest("Language must be en, ml, or ta", requestId);

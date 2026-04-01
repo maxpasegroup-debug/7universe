@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { computeLeadScore, isHighIntent } from "@/lib/lead-score";
-import { isValidMobile10, normalizeMobile } from "@/lib/validation";
+import { isValidInternationalMobile, mobilesEqual, normalizeInternationalMobile } from "@/lib/validation";
 import type { OnboardingProfileRow } from "@/types/onboarding";
 
 type Body = {
@@ -18,8 +18,8 @@ export async function POST(request: Request) {
   }
 
   const id = typeof body.id === "string" ? body.id : "";
-  const mobile = typeof body.mobile === "string" ? normalizeMobile(body.mobile) : "";
-  if (!id || !isValidMobile10(mobile)) {
+  const mobile = typeof body.mobile === "string" ? normalizeInternationalMobile(body.mobile) : "";
+  if (!id || !isValidInternationalMobile(mobile)) {
     return NextResponse.json({ error: "Invalid id or mobile" }, { status: 400 });
   }
 
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (fe || !row) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    if (row.mobile !== mobile) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!mobilesEqual(row.mobile, mobile)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const lead_score = computeLeadScore({
       step1_completed: row.step1_completed,

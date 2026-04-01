@@ -50,6 +50,7 @@ function responseError(res: Response, fallback: string, payload?: ErrorPayload |
   if (fromBody) return new Error(fromBody);
   if (res.status === 503) return new Error("Service is temporarily unavailable. Please try again.");
   if (res.status === 429) return new Error("Too many requests. Please wait and retry.");
+  if (res.status >= 500) return new Error("Server error");
   return new Error(`${fallback} (${res.status})`);
 }
 

@@ -40,6 +40,9 @@ export type Copy = {
     mobilePlaceholder: string;
     errorName: string;
     errorMobile: string;
+    errorInvalidNumber: string;
+    alreadyRegistered: string;
+    errorServer: string;
     submitError: string;
   };
   dashboard: {
@@ -96,9 +99,12 @@ const copy: Record<LanguageCode, Copy> = {
       mobileLabel: "Mobile number",
       continue: "Continue",
       namePlaceholder: "Your full name",
-      mobilePlaceholder: "10-digit mobile",
+      mobilePlaceholder: "Phone number",
       errorName: "Please enter your name.",
-      errorMobile: "Enter a valid 10-digit mobile number.",
+      errorMobile: "Enter a valid phone number with country code.",
+      errorInvalidNumber: "Invalid number",
+      alreadyRegistered: "Already registered. Continuing…",
+      errorServer: "Server error",
       submitError: "Could not save your details. Please try again.",
     },
     dashboard: {
@@ -167,9 +173,12 @@ const copy: Record<LanguageCode, Copy> = {
       mobileLabel: "മൊബൈൽ നമ്പർ",
       continue: "തുടരുക",
       namePlaceholder: "പൂർണ്ണ പേര്",
-      mobilePlaceholder: "10 അക്ക മൊബൈൽ",
+      mobilePlaceholder: "ഫോൺ നമ്പർ",
       errorName: "പേര് നൽകുക.",
-      errorMobile: "സാധുവായ 10 അക്ക മൊബൈൽ നൽകുക.",
+      errorMobile: "രാജ്യ കോഡ് സഹിതം സാധുവായ ഫോൺ നമ്പർ നൽകുക.",
+      errorInvalidNumber: "അസാധുവായ നമ്പർ",
+      alreadyRegistered: "ഇതിനകം രജിസ്റ്റർ ചെയ്തിരിക്കുന്നു. തുടരുന്നു…",
+      errorServer: "സെർവർ പിശക്",
       submitError: "വിവരങ്ങൾ സേവ് ചെയ്യാനായില്ല. വീണ്ടും ശ്രമിക്കുക.",
     },
     dashboard: {
@@ -238,9 +247,12 @@ const copy: Record<LanguageCode, Copy> = {
       mobileLabel: "மொபைல் எண்",
       continue: "தொடரவும்",
       namePlaceholder: "முழு பெயர்",
-      mobilePlaceholder: "10 இலக்க மொபைல்",
+      mobilePlaceholder: "தொலைபேசி எண்",
       errorName: "பெயரை உள்ளிடவும்.",
-      errorMobile: "செல்லுபடியாகும் 10 இலக்க மொபைலை உள்ளிடவும்.",
+      errorMobile: "நாட்டுக் குறியீட்டுடன் செல்லுபடியாகும் எண்ணை உள்ளிடவும்.",
+      errorInvalidNumber: "தவறான எண்",
+      alreadyRegistered: "ஏற்கனவே பதிவு செய்யப்பட்டது. தொடருகிறது…",
+      errorServer: "சர்வர் பிழை",
       submitError: "விவரங்களை சேமிக்க முடியவில்லை. மீண்டும் முயலவும்.",
     },
     dashboard: {

@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "prisma generate",
-    "build": "next build",
+    "build": "prisma generate && prisma migrate deploy && next build",
+    "build:next-only": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
@@ -24,7 +24,8 @@
     "pg": "^8.20.0",
     "prisma": "^7.5.0",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "react-phone-input-2": "^2.15.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

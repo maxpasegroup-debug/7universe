@@ -3,10 +3,10 @@
  * Messages outside the 24h window may require approved templates in Meta Business Manager.
  */
 
-function normalizeIndiaMobile(mobile10: string): string {
-  const d = mobile10.replace(/\D/g, "");
+/** WhatsApp Cloud API `to`: digits only, with country code (no +). */
+function normalizeWhatsAppRecipient(raw: string): string {
+  const d = raw.replace(/\D/g, "");
   if (d.length === 10) return `91${d}`;
-  if (d.startsWith("91") && d.length === 12) return d;
   return d;
 }
 
@@ -42,8 +42,8 @@ async function sendPayload(payload: Record<string, unknown>): Promise<WhatsAppRe
   return { ok: true };
 }
 
-export async function sendWhatsAppText(mobile10: string, body: string): Promise<WhatsAppResult> {
-  const to = normalizeIndiaMobile(mobile10);
+export async function sendWhatsAppText(mobile: string, body: string): Promise<WhatsAppResult> {
+  const to = normalizeWhatsAppRecipient(mobile);
   return sendPayload({
     messaging_product: "whatsapp",
     to,

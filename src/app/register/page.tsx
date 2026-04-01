@@ -11,10 +11,16 @@ import {
   getStoredReferrerId,
   setStoredProfile,
 } from "@/lib/storage";
-import { isUuid } from "@/lib/validation";
+import {
+  e164ToPhoneInputDigits,
+  isUuid,
+  isValidInternationalMobile,
+  normalizeInternationalMobile,
+} from "@/lib/validation";
 import { SpaceBackground } from "@/components/layout/SpaceBackground";
 import { RefCapture } from "@/components/referral/RefCapture";
 import { GlowButton } from "@/components/ui/GlowButton";
+import { InternationalPhoneInput } from "@/components/ui/InternationalPhoneInput";
 import { Logo } from "@/components/ui/Logo";
 
 function RegisterForm() {
@@ -26,8 +32,12 @@ function RegisterForm() {
   const c = getCopy(lang);
   const existing = useMemo(() => getStoredProfile(), []);
   const [name, setName] = useState(existing?.name ?? "");
-  const [mobile, setMobile] = useState(existing?.mobile ?? "");
+  const [phoneDigits, setPhoneDigits] = useState(() => {
+    if (!existing?.mobile) return "";
+    return e164ToPhoneInputDigits(normalizeInternationalMobile(existing.mobile));
+  });
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const [storedRef, setStoredRef] = useState<string | null>(null);
@@ -41,38 +51,55 @@ function RegisterForm() {
     return null;
   }, [rawFromUrl, storedRef]);
 
+  function mapSubmitErrorMessage(raw: string): string {
+    if (raw === "Invalid number") return c.userForm.errorInvalidNumber;
+    if (raw === "Server error") return c.userForm.errorServer;
+    return raw;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmedName = name.trim();
-    const trimmedMobile = mobile.replace(/\s/g, "");
+    const digits = phoneDigits.replace(/\D/g, "");
+    const e164 = normalizeInternationalMobile(`+${digits}`);
+
     if (!trimmedName) {
+      setNotice(null);
       setError(c.userForm.errorName);
       return;
     }
-    if (!/^\d{10}$/.test(trimmedMobile)) {
-      setError(c.userForm.errorMobile);
+    if (!isValidInternationalMobile(e164)) {
+      setNotice(null);
+      setError(c.userForm.errorInvalidNumber);
       return;
     }
+
     setError(null);
+    setNotice(null);
     setLoading(true);
     try {
       const res = await createUser({
         name: trimmedName,
-        mobile: trimmedMobile,
+        mobile: e164,
         language: lang,
         ...(referrerUuid ? { referrerId: referrerUuid } : {}),
       });
       setStoredProfile({
         id: res.userId,
         name: trimmedName,
-        mobile: trimmedMobile,
+        mobile: e164,
       });
       if (referrerUuid) {
         clearStoredReferrerId();
       }
+      if (res.created === false) {
+        setNotice(c.userForm.alreadyRegistered);
+        await new Promise((r) => setTimeout(r, 600));
+      }
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : c.userForm.submitError);
+      const raw = err instanceof Error ? err.message : "";
+      setError(mapSubmitErrorMessage(raw) || c.userForm.submitError);
     } finally {
       setLoading(false);
     }
@@ -109,18 +136,18 @@ function RegisterForm() {
             <label htmlFor="mobile" className="mb-2 block text-sm font-medium text-slate-300">
               {c.userForm.mobileLabel}
             </label>
-            <input
-              id="mobile"
-              name="mobile"
-              inputMode="numeric"
-              autoComplete="tel"
-              value={mobile}
-              onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
-              placeholder={c.userForm.mobilePlaceholder}
+            <InternationalPhoneInput
+              value={phoneDigits}
+              onChange={setPhoneDigits}
               disabled={loading}
-              className="w-full rounded-xl border border-slate-700/90 bg-slate-950/50 px-4 py-3 text-slate-100 placeholder:text-slate-500 focus:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-500/30 disabled:opacity-60"
+              placeholder={c.userForm.mobilePlaceholder}
             />
           </div>
+          {notice && (
+            <p className="text-sm text-amber-200/90" role="status">
+              {notice}
+            </p>
+          )}
           {error && (
             <p className="text-sm text-red-400" role="alert">
               {error}

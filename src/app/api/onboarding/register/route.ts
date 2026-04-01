@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateUniqueReferralCode } from "@/lib/referral-code";
-import { isLanguageCode, isValidMobile10, normalizeMobile } from "@/lib/validation";
+import { isLanguageCode, isValidInternationalMobile, normalizeInternationalMobile } from "@/lib/validation";
 import { sendWelcomeMessage } from "@/lib/whatsapp";
 import type { OnboardingProfileRow } from "@/types/onboarding";
 
@@ -21,15 +21,15 @@ export async function POST(request: Request) {
   }
 
   const name = typeof body.name === "string" ? body.name.trim() : "";
-  const mobile = typeof body.mobile === "string" ? normalizeMobile(body.mobile) : "";
+  const mobile = typeof body.mobile === "string" ? normalizeInternationalMobile(body.mobile) : "";
   const language = typeof body.language === "string" ? body.language : "";
   const refInvite = typeof body.referral_code === "string" ? body.referral_code.trim().toUpperCase() : "";
 
   if (!name) {
     return NextResponse.json({ error: "Name is required" }, { status: 400 });
   }
-  if (!isValidMobile10(mobile)) {
-    return NextResponse.json({ error: "Invalid mobile number" }, { status: 400 });
+  if (!isValidInternationalMobile(mobile)) {
+    return NextResponse.json({ error: "Invalid number" }, { status: 400 });
   }
   if (!isLanguageCode(language)) {
     return NextResponse.json({ error: "Invalid language" }, { status: 400 });
