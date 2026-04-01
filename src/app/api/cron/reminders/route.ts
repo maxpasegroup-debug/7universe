@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { sendInactivityReminder } from "@/lib/whatsapp";
+import { prisma } from "@/lib/prisma";
 
 /** Vercel Cron or external scheduler: GET with Authorization: Bearer CRON_SECRET */
 export async function GET(request: Request) {
@@ -14,28 +14,27 @@ export async function GET(request: Request) {
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
   try {
-    const supabase = createAdminClient();
-    const { data: rows } = await supabase
-      .from("onboarding_profiles")
-      .select("id, mobile, name, last_activity_at, whatsapp_reminder_sent_at, step3_completed")
-      .eq("step3_completed", false)
-      .lt("last_activity_at", cutoff)
-      .is("whatsapp_reminder_sent_at", null)
-      .limit(50);
+    const rows = await prisma.user.findMany({
+      where: {
+        createdAt: { lt: new Date(cutoff) },
+        progress: { is: { step3Completed: false } },
+      },
+      select: { id: true, mobile: true, name: true },
+      take: 50,
+      orderBy: { createdAt: "asc" },
+    });
 
     let sent = 0;
-    for (const row of rows ?? []) {
+    for (const row of rows) {
       const r = await sendInactivityReminder(row.mobile, row.name);
       if (r.ok) {
-        await supabase
-          .from("onboarding_profiles")
-          .update({ whatsapp_reminder_sent_at: new Date().toISOString() })
-          .eq("id", row.id);
+        // We currently keep direct URL + WhatsApp integration without separate reminder-state table.
+        // This cron remains best-effort and does not persist reminder sent markers.
         sent += 1;
       }
     }
 
-    return NextResponse.json({ ok: true, processed: rows?.length ?? 0, reminders_sent: sent });
+    return NextResponse.json({ ok: true, processed: rows.length, reminders_sent: sent });
   } catch (e) {
     console.error("[cron/reminders]", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
