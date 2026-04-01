@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { badRequest, getRequestId, logApiError, notFound, serverError } from "@/lib/api";
+import { userCookieName, verifyUserSessionToken } from "@/lib/auth/user-session";
 import {
   completableSteps,
   computeLegacyStepFlags,
@@ -24,13 +25,26 @@ type Body = {
   stepId?: string;
 };
 
+async function getSessionUserId(request: Request): Promise<string | null> {
+  const cookie = request.headers.get("cookie") ?? "";
+  const pair = cookie
+    .split(";")
+    .map((p) => p.trim())
+    .find((p) => p.startsWith(`${userCookieName()}=`));
+  if (!pair) return null;
+  const token = decodeURIComponent(pair.split("=").slice(1).join("="));
+  const payload = await verifyUserSessionToken(token);
+  return payload?.sub ?? null;
+}
+
 export async function GET(request: Request) {
   const requestId = getRequestId();
+  const sessionUserId = await getSessionUserId(request);
   const { searchParams } = new URL(request.url);
-  const userId = searchParams.get("userId")?.trim() ?? "";
+  const userId = (searchParams.get("userId")?.trim() ?? "") || sessionUserId || "";
 
-  if (!userId || !isUuid(userId)) {
-    return badRequest("userId must be a valid UUID", requestId);
+  if (!sessionUserId || !userId || !isUuid(userId) || sessionUserId !== userId) {
+    return NextResponse.json({ success: false, error: "Unauthorized", requestId }, { status: 401 });
   }
 
   try {
@@ -74,10 +88,11 @@ export async function POST(request: Request) {
   }
 
   const userId = typeof body.userId === "string" ? body.userId.trim() : "";
+  const sessionUserId = await getSessionUserId(request);
   let stepId = typeof body.stepId === "string" ? body.stepId.trim() : "";
 
-  if (!userId || !isUuid(userId)) {
-    return badRequest("userId must be a valid UUID", requestId);
+  if (!sessionUserId || !userId || !isUuid(userId) || sessionUserId !== userId) {
+    return NextResponse.json({ success: false, error: "Unauthorized", requestId }, { status: 401 });
   }
 
   try {

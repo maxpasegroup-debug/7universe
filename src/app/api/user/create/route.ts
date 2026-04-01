@@ -1,80 +1,18 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { badRequest, getRequestId, logApiError, notFound, serverError } from "@/lib/api";
+import { hashPin, isValidPin } from "@/lib/auth-pin";
 import { prisma } from "@/lib/prisma";
 import { isValidInternationalMobile, isUuid, normalizeInternationalMobile } from "@/lib/validation";
 
-type Body = {
-  name?: string;
-  mobile?: string;
-  language?: string;
-  referrerId?: string | null;
-};
+type Body = { name?: string; mobile?: string; language?: string; pin?: string; referrerId?: string | null };
 
-function maskE164(e164: string): string {
-  const d = e164.replace(/\D/g, "");
-  if (d.length <= 4) return "****";
-  return `***${d.slice(-4)}`;
-}
-
-function isMissingTableError(e: unknown): boolean {
-  if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2021") return true;
-  const msg = e instanceof Error ? e.message : String(e);
-  return (
-    /does not exist/i.test(msg) &&
-    (/public\.users|"users"|'users'|relation.*users|\busers\b/i.test(msg) || /\btable\b/i.test(msg))
-  );
-}
-
-function isConnectionFailure(e: unknown): boolean {
-  if (e instanceof Prisma.PrismaClientInitializationError) return true;
-  if (e instanceof Prisma.PrismaClientKnownRequestError) {
-    return ["P1001", "P1017"].includes(e.code);
-  }
-  const msg = e instanceof Error ? e.message : String(e);
-  return /Can't reach database|ECONNREFUSED|ENOTFOUND|ETIMEDOUT|server closed the connection/i.test(msg);
-}
-
-function clientFacingDbMessage(e: unknown): string {
-  if (isMissingTableError(e)) {
-    return "Database not initialized";
-  }
-  if (isConnectionFailure(e)) {
-    return "Database connection failed";
-  }
-  if (e instanceof Prisma.PrismaClientKnownRequestError) {
-    return e.message;
-  }
-  if (e instanceof Error) {
-    return e.message;
-  }
-  return "Unexpected database error";
-}
-
-async function ensureProgressForUser(userId: string, requestId: string): Promise<void> {
-  try {
-    const existing = await prisma.progress.findUnique({ where: { userId }, select: { id: true } });
-    if (existing) {
-      console.log(`[POST /api/user/create] Progress exists requestId=${requestId}`, { userId, progressId: existing.id });
-      return;
-    }
-    const row = await prisma.progress.create({
-      data: {
-        userId,
-        step1Completed: false,
-        step2Completed: false,
-        step3Completed: false,
-        score: 0,
-      },
-    });
-    console.log(`[POST /api/user/create] Progress created requestId=${requestId}`, { userId, progressId: row.id });
-  } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      console.log(`[POST /api/user/create] Progress already created (race) requestId=${requestId}`, userId);
-      return;
-    }
-    console.error(`[POST /api/user/create] ensureProgressForUser failed requestId=${requestId}`, userId, err);
-  }
+async function ensureProgressForUser(userId: string): Promise<void> {
+  const existing = await prisma.progress.findUnique({ where: { userId }, select: { id: true } });
+  if (existing) return;
+  await prisma.progress.create({
+    data: { userId, step1Completed: false, step2Completed: false, step3Completed: false, score: 0 },
+  });
 }
 
 export async function POST(request: Request) {
@@ -96,14 +34,8 @@ export async function POST(request: Request) {
   const mobile =
     typeof body.mobile === "string" ? normalizeInternationalMobile(body.mobile) : "";
   const language = typeof body.language === "string" ? body.language.trim() : "";
+  const pin = typeof body.pin === "string" ? body.pin.trim() : "";
   const referrerIdRaw = body.referrerId;
-
-  console.log(`[POST /api/user/create] Request body requestId=${requestId}`, {
-    namePreview: name.slice(0, 80),
-    language,
-    mobileMasked: mobile ? maskE164(mobile) : "(empty)",
-    referrerPresent: referrerIdRaw != null && String(referrerIdRaw).trim() !== "",
-  });
 
   if (!name) {
     return badRequest("Name is required", requestId);
@@ -111,9 +43,8 @@ export async function POST(request: Request) {
   if (!isValidInternationalMobile(mobile)) {
     return badRequest("Invalid number", requestId);
   }
-  if (!language) {
-    return badRequest("Language is required", requestId);
-  }
+  if (!language) return badRequest("Language is required", requestId);
+  if (!isValidPin(pin)) return badRequest("PIN must be exactly 4 digits", requestId);
   const langNorm = language.toLowerCase();
   const langRow = await prisma.language.findFirst({
     where: { code: langNorm, isActive: true },
@@ -135,10 +66,8 @@ export async function POST(request: Request) {
       }
       resolvedReferrerId = rid;
     } catch (e) {
-      const msg = clientFacingDbMessage(e);
       logApiError("POST /api/user/create (referrer lookup)", e, requestId);
-      console.error(`[POST /api/user/create] Referrer lookup failed requestId=${requestId}`, e);
-      return serverError(msg, requestId);
+      return serverError("Could not validate referrer", requestId);
     }
   }
 
@@ -149,22 +78,23 @@ export async function POST(request: Request) {
     });
 
     if (existing) {
-      await ensureProgressForUser(existing.id, requestId);
-      console.log(`[POST /api/user/create] Duplicate mobile — success with existing user requestId=${requestId}`, {
-        userId: existing.id,
-      });
+      await ensureProgressForUser(existing.id);
       return NextResponse.json({
         userId: existing.id,
         success: true,
         created: false,
+        accountExists: true,
+        message: "This number already exists. Please continue with your PIN.",
       });
     }
 
+    const pinHash = await hashPin(pin);
     const user = await prisma.$transaction(async (tx) => {
       const u = await tx.user.create({
         data: {
           name,
           mobile,
+          pinHash,
           language: langRow.code,
         },
       });
@@ -191,12 +121,11 @@ export async function POST(request: Request) {
       return u;
     });
 
-    console.log(`[POST /api/user/create] User created requestId=${requestId}`, { userId: user.id, created: true });
-
     return NextResponse.json({
       userId: user.id,
       success: true,
       created: true,
+      accountExists: false,
     });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
@@ -206,25 +135,21 @@ export async function POST(request: Request) {
           select: { id: true },
         });
         if (fallback) {
-          await ensureProgressForUser(fallback.id, requestId);
-          console.log(`[POST /api/user/create] Unique race resolved requestId=${requestId}`, { userId: fallback.id });
+          await ensureProgressForUser(fallback.id);
           return NextResponse.json({
             userId: fallback.id,
             success: true,
             created: false,
+            accountExists: true,
+            message: "This number already exists. Please continue with your PIN.",
           });
         }
       } catch (recoveryErr) {
         logApiError("POST /api/user/create (P2002 recovery)", recoveryErr, requestId);
-        console.error(`[POST /api/user/create] P2002 recovery failed requestId=${requestId}`, recoveryErr);
-        return serverError(clientFacingDbMessage(recoveryErr), requestId);
+        return serverError("Could not create account", requestId);
       }
     }
-
-    const message = clientFacingDbMessage(e);
     logApiError("POST /api/user/create", e, requestId);
-    console.error(`[POST /api/user/create] Error requestId=${requestId}:`, message, e);
-
-    return serverError(message, requestId);
+    return serverError("Could not create account", requestId);
   }
 }

@@ -101,6 +101,8 @@ model User {
   id        String   @id @default(uuid()) @db.Uuid
   name      String
   mobile    String   @unique // one account per mobile
+  /// bcrypt hash of 4-digit PIN; empty only for legacy rows pre-auth-migration.
+  pinHash   String   @default("") @map("pin_hash")
   language  String // matches Language.code
   createdAt DateTime @default(now()) @map("created_at")
 

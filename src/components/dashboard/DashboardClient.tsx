@@ -11,7 +11,7 @@ import {
 } from "@/lib/api/user-client";
 import { getAppPublicUrl } from "@/lib/app-url";
 import { getCopy, resolveLanguage } from "@/lib/i18n";
-import { getStoredLanguage, getStoredProfile } from "@/lib/storage";
+import { clearStoredProfile, getStoredLanguage, getStoredProfile } from "@/lib/storage";
 import { youtubeEmbedId } from "@/lib/youtube";
 import { ChatbotFAB } from "@/components/dashboard/ChatbotFAB";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -80,10 +80,15 @@ export function DashboardClient() {
       setProgress(progRes.progress);
       setReferralCount(progRes.referralCount);
       setLoadError(null);
-    } catch {
+    } catch (e) {
+      if (e instanceof Error && /unauthorized|401/i.test(e.message)) {
+        clearStoredProfile();
+        router.replace("/register");
+        return;
+      }
       setLoadError(errorLoadMsg);
     }
-  }, [stored, errorLoadMsg, lang]);
+  }, [stored, errorLoadMsg, lang, router]);
 
   useEffect(() => {
     if (!stored?.id) {

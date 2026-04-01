@@ -85,6 +85,12 @@ export function setStoredProfile(profile: StoredProfile): void {
   window.localStorage.removeItem(STORAGE_KEYS.USER);
 }
 
+export function clearStoredProfile(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(STORAGE_KEYS.PROFILE);
+  window.localStorage.removeItem(STORAGE_KEYS.USER);
+}
+
 export function getStoredReferrerId(): string | null {
   if (typeof window === "undefined") return null;
   const v = window.localStorage.getItem(STORAGE_KEYS.REFERRER_ID)?.trim();

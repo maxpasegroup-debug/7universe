@@ -4,7 +4,14 @@ import type { NextRequest } from "next/server";
 import { adminCookieName } from "@/lib/auth/admin-session";
 
 type Bucket = { count: number; resetAt: number };
-const RATE_LIMITED_PATHS = new Set(["/api/user/create", "/api/user/progress", "/api/admin/login"]);
+const RATE_LIMITED_PATHS = new Set([
+  "/api/user/create",
+  "/api/user/progress",
+  "/api/admin/login",
+  "/api/auth/check",
+  "/api/auth/register",
+  "/api/auth/login",
+]);
 const WINDOW_MS = 60_000;
 const MAX_PER_WINDOW = 60;
 

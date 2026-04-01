@@ -4,6 +4,7 @@ export type CreateUserBody = {
   name: string;
   mobile: string;
   language: string;
+  pin: string;
   referrerId?: string;
 };
 
@@ -11,6 +12,20 @@ export type CreateUserResponse = {
   userId: string;
   success: boolean;
   created?: boolean;
+  accountExists?: boolean;
+  message?: string;
+};
+
+export type AuthCheckResponse = {
+  success: boolean;
+  accountExists: boolean;
+  message?: string;
+  user?: { id: string; name: string; mobile: string; language: string; hasPin?: boolean };
+};
+
+export type AuthLoginResponse = {
+  success: boolean;
+  user: { id: string; name: string; mobile: string; language: string };
 };
 
 export type ProgressRow = {
@@ -66,7 +81,7 @@ function responseError(res: Response, fallback: string, payload?: ErrorPayload |
 }
 
 export async function createUser(body: CreateUserBody): Promise<CreateUserResponse> {
-  const res = await fetch("/api/user/create", {
+  const res = await fetch("/api/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -87,7 +102,31 @@ export async function createUser(body: CreateUserBody): Promise<CreateUserRespon
     userId: data.userId,
     success: true,
     created: data.created,
+    accountExists: data.accountExists,
+    message: data.message,
   };
+}
+
+export async function checkMobileAccount(mobile: string): Promise<AuthCheckResponse> {
+  const res = await fetch("/api/auth/check", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mobile }),
+  });
+  const data = await readApiPayload<AuthCheckResponse & ErrorPayload>(res);
+  if (!res.ok || !data) throw responseError(res, "Could not check account", data);
+  return data;
+}
+
+export async function loginWithPin(mobile: string, pin: string): Promise<AuthLoginResponse> {
+  const res = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mobile, pin }),
+  });
+  const data = await readApiPayload<AuthLoginResponse & ErrorPayload>(res);
+  if (!res.ok || !data?.user) throw responseError(res, "Login failed", data);
+  return data;
 }
 
 export async function fetchUserProgress(userId: string): Promise<{ progress: ProgressRow; referralCount: number }> {

@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { AuthAutoRedirect } from "@/components/auth/AuthAutoRedirect";
 import { SpaceBackground } from "@/components/layout/SpaceBackground";
 import { LandingFeatureChips } from "@/components/landing/LandingFeatureChips";
 import { LandingLanguageSelector } from "@/components/landing/LandingLanguageSelector";
@@ -10,6 +11,7 @@ export default function SplashPage() {
   return (
     <SpaceBackground className="overflow-hidden">
       <Suspense fallback={null}>
+        <AuthAutoRedirect />
         <RefCapture />
       </Suspense>
       <main className="relative mx-auto flex min-h-dvh w-full max-w-lg flex-col items-center justify-center px-5 py-10 text-center sm:px-8">
@@ -35,7 +37,7 @@ export default function SplashPage() {
           <div className="landing-shimmer-border pointer-events-none absolute inset-0 rounded-3xl opacity-25" aria-hidden />
           <div className="relative z-10 space-y-3">
             <LandingLanguageSelector />
-            <GlowLink href="/language" className="landing-cta-pulse-glow w-full text-base">
+            <GlowLink href="/register" className="landing-cta-pulse-glow w-full text-base">
               Enter
             </GlowLink>
           </div>
