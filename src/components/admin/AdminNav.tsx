@@ -5,11 +5,6 @@ import { usePathname } from "next/navigation";
 
 const links = [
   { href: "/admin", label: "Overview" },
-  { href: "/admin/languages", label: "Languages" },
-  { href: "/admin/content", label: "Videos" },
-  { href: "/admin/materials", label: "Materials" },
-  { href: "/admin/steps", label: "Steps" },
-  { href: "/admin/legacy-settings", label: "Legacy" },
   { href: "/admin/users", label: "Users" },
 ];
 
@@ -23,11 +18,11 @@ export function AdminNav() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-amber-500/20 bg-slate-950/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <span className="font-display text-lg font-bold tracking-tight text-amber-200">7Universe Admin</span>
         <nav className="flex flex-wrap items-center gap-1">
           {links.map((l) => {
-            const active = pathname === l.href;
+            const active = pathname === l.href || (l.href === "/admin" && pathname === "/admin");
             return (
               <Link
                 key={l.href}
@@ -43,7 +38,7 @@ export function AdminNav() {
           <button
             type="button"
             onClick={() => void logout()}
-            className="ml-2 rounded-lg border border-slate-600 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800"
+            className="ml-2 rounded-lg border border-amber-500/30 px-3 py-2 text-sm text-amber-100 hover:bg-amber-500/10"
           >
             Log out
           </button>

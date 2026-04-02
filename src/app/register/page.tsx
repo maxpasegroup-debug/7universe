@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { checkMobileAccount, createUser, loginWithPin } from "@/lib/api/user-client";
-import { getCopy, resolveLanguage } from "@/lib/i18n";
+import { getCopy } from "@/lib/i18n";
 import {
   clearStoredProfile,
   clearStoredReferrerId,
@@ -16,6 +16,7 @@ import {
   isValid4DigitPin,
   isValidInternationalMobile,
   normalizeInternationalMobile,
+  normalizeSignupLanguageCode,
 } from "@/lib/validation";
 import { AuthAutoRedirect } from "@/components/auth/AuthAutoRedirect";
 import { SpaceBackground } from "@/components/layout/SpaceBackground";
@@ -31,8 +32,8 @@ function RegisterForm() {
   const searchParams = useSearchParams();
   const rawFromUrl = searchParams.get("ref")?.trim() ?? "";
 
-  const lang = resolveLanguage(getStoredLanguage());
-  const c = getCopy(lang);
+  const languageCode = normalizeSignupLanguageCode(getStoredLanguage());
+  const c = getCopy(languageCode);
   const [mode, setMode] = useState<Mode>("mobile");
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
@@ -123,7 +124,7 @@ function RegisterForm() {
       const res = await createUser({
         name: trimmedName,
         mobile: e164,
-        language: lang,
+        language: languageCode,
         pin,
         ...(referrerUuid ? { referrerId: referrerUuid } : {}),
       });

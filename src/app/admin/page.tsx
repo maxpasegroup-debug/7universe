@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 type Stats = {
   totalUsers: number;
   todaySignups: number;
-  completedUsers: number;
   highIntentUsers: number;
   funnel: {
     totalUsers: number;
@@ -33,12 +32,17 @@ export default function AdminHomePage() {
     void (async () => {
       try {
         const res = await fetch("/api/admin/stats");
-        const data = (await res.json()) as Stats & { error?: string };
+        const data = (await res.json()) as Stats & { error?: string; completedUsers?: number };
         if (!res.ok) {
           setError(data.error ?? "Failed to load");
           return;
         }
-        setStats(data);
+        setStats({
+          totalUsers: data.totalUsers,
+          todaySignups: data.todaySignups,
+          highIntentUsers: data.highIntentUsers,
+          funnel: data.funnel,
+        });
       } catch {
         setError("Network error");
       }
@@ -46,20 +50,19 @@ export default function AdminHomePage() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
       <h1 className="font-display text-2xl font-bold text-slate-50">Overview</h1>
-      <p className="mt-1 text-sm text-slate-500">User progress, funnel, and signup velocity.</p>
+      <p className="mt-1 text-sm text-slate-500">Signups and onboarding funnel.</p>
 
       {error && (
         <p className="mt-6 rounded-xl border border-red-500/30 bg-red-950/40 px-4 py-3 text-sm text-red-200">{error}</p>
       )}
 
       {stats && (
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-8 grid gap-4 sm:grid-cols-3">
           <StatCard label="Total users" value={stats.totalUsers} />
-          <StatCard label="Today signups" value={stats.todaySignups} />
-          <StatCard label="Completed users" value={stats.completedUsers} />
-          <StatCard label="High intent users" value={stats.highIntentUsers} />
+          <StatCard label="New users today" value={stats.todaySignups} />
+          <StatCard label="High intent (step 3 done)" value={stats.highIntentUsers} />
         </div>
       )}
 
@@ -72,7 +75,7 @@ export default function AdminHomePage() {
               { label: "Step 1 completed", value: stats.funnel.step1Completed },
               { label: "Step 2 completed", value: stats.funnel.step2Completed },
               { label: "Step 3 completed", value: stats.funnel.step3Completed },
-              { label: "Fully completed", value: stats.funnel.completedUsers },
+              { label: "All steps completed", value: stats.funnel.completedUsers },
             ].map((row) => {
               const base = Math.max(stats.funnel.totalUsers, 1);
               const width = Math.max(4, Math.round((row.value / base) * 100));

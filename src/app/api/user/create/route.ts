@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { badRequest, getRequestId, logApiError, notFound, serverError } from "@/lib/api";
 import { hashPin, isValidPin } from "@/lib/auth-pin";
+import { resolveSignupLanguageCode } from "@/lib/language";
 import { prisma } from "@/lib/prisma";
 import { isValidInternationalMobile, isUuid, normalizeInternationalMobile } from "@/lib/validation";
 
@@ -43,15 +44,8 @@ export async function POST(request: Request) {
   if (!isValidInternationalMobile(mobile)) {
     return badRequest("Invalid number", requestId);
   }
-  if (!language) return badRequest("Language is required", requestId);
   if (!isValidPin(pin)) return badRequest("PIN must be exactly 4 digits", requestId);
-  const langNorm = language.toLowerCase();
-  const langRow = await prisma.language.findFirst({
-    where: { code: langNorm, isActive: true },
-  });
-  if (!langRow) {
-    return badRequest("Invalid or inactive language", requestId);
-  }
+  const resolvedLanguageCode = await resolveSignupLanguageCode(language, { requestId });
 
   let resolvedReferrerId: string | undefined;
   if (referrerIdRaw !== undefined && referrerIdRaw !== null && String(referrerIdRaw).trim() !== "") {
@@ -95,7 +89,7 @@ export async function POST(request: Request) {
           name,
           mobile,
           pinHash,
-          language: langRow.code,
+          language: resolvedLanguageCode,
         },
       });
 

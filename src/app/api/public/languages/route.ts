@@ -8,7 +8,7 @@ export async function GET() {
   try {
     const languages = await prisma.language.findMany({
       where: { isActive: true },
-      orderBy: { code: "asc" },
+      orderBy: { name: "asc" },
       select: { id: true, name: true, code: true },
     });
     return NextResponse.json({ languages });

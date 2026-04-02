@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { badRequest, getRequestId, logApiError, notFound, serverError } from "@/lib/api";
 import { createUserSessionToken, userCookieName, userCookieOptions } from "@/lib/auth/user-session";
 import { hashPin, isValidPin } from "@/lib/auth-pin";
+import { resolveSignupLanguageCode } from "@/lib/language";
 import { prisma } from "@/lib/prisma";
 import { isUuid, isValidInternationalMobile, normalizeInternationalMobile } from "@/lib/validation";
 
@@ -44,7 +45,6 @@ export async function POST(request: Request) {
 
   if (!name) return badRequest("Name is required", requestId);
   if (!isValidInternationalMobile(mobile)) return badRequest("Invalid number", requestId);
-  if (!language) return badRequest("Language is required", requestId);
   if (!isValidPin(pin)) return badRequest("PIN must be exactly 4 digits", requestId);
 
   let resolvedReferrerId: string | undefined;
@@ -56,8 +56,7 @@ export async function POST(request: Request) {
     resolvedReferrerId = rid;
   }
 
-  const langRow = await prisma.language.findFirst({ where: { code: language, isActive: true }, select: { code: true } });
-  if (!langRow) return badRequest("Invalid or inactive language", requestId);
+  const resolvedLanguageCode = await resolveSignupLanguageCode(language, { requestId });
 
   try {
     const existing = await prisma.user.findUnique({
@@ -88,7 +87,7 @@ export async function POST(request: Request) {
           name,
           mobile,
           pinHash,
-          language: langRow.code,
+          language: resolvedLanguageCode,
         },
       });
       await tx.progress.create({

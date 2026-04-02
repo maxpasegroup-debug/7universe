@@ -66,10 +66,22 @@ export async function middleware(request: NextRequest) {
 
   try {
     await jwtVerify(token, new TextEncoder().encode(secret));
-    return NextResponse.next();
   } catch {
     return NextResponse.redirect(new URL("/admin/login", request.url));
   }
+
+  const removedAdminUi = new Set([
+    "/admin/languages",
+    "/admin/content",
+    "/admin/materials",
+    "/admin/steps",
+    "/admin/legacy-settings",
+  ]);
+  if (removedAdminUi.has(pathname)) {
+    return NextResponse.redirect(new URL("/admin", request.url));
+  }
+
+  return NextResponse.next();
 }
 
 export const config = {

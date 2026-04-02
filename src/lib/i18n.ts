@@ -1,10 +1,5 @@
+/** Locales with full in-app copy (UI strings). Other language codes fall back to English copy via {@link getCopy}. */
 export type LanguageCode = "en" | "ml" | "ta";
-
-export const LANGUAGE_OPTIONS: { code: LanguageCode; label: string }[] = [
-  { code: "en", label: "English" },
-  { code: "ml", label: "മലയാളം" },
-  { code: "ta", label: "தமிழ்" },
-];
 
 /** Placeholder YouTube IDs — swap per language when you have real links. */
 const MEDIA = {

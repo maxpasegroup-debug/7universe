@@ -1,7 +1,14 @@
 import "dotenv/config";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { ContentCategory, MaterialKind, PrismaClient, StepKind } from "@prisma/client";
+import { INDIAN_LANGUAGES_CATALOG, catalogNameForCode } from "../src/lib/languages-catalog";
 
-const prisma = new PrismaClient();
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL is required for seed");
+}
+const adapter = new PrismaPg({ connectionString: databaseUrl });
+const prisma = new PrismaClient({ adapter });
 
 async function upsertLanguage(name: string, code: string) {
   return prisma.language.upsert({
@@ -11,15 +18,22 @@ async function upsertLanguage(name: string, code: string) {
   });
 }
 
+async function seedIndianLanguages() {
+  for (const { code, name } of INDIAN_LANGUAGES_CATALOG) {
+    await upsertLanguage(name, code);
+  }
+  console.log(`Seeded/updated ${INDIAN_LANGUAGES_CATALOG.length} languages.`);
+}
+
 async function main() {
+  await seedIndianLanguages();
+
   const settingsRows = await prisma.appSettings.findMany();
 
   if (settingsRows.length === 0) {
-    console.log("No app_settings rows — seeding default EN journey + language stubs.");
+    console.log("No app_settings rows — seeding default EN journey.");
 
-    const en = await upsertLanguage("English", "en");
-    await upsertLanguage("മലയാളം", "ml");
-    await upsertLanguage("தமிழ்", "ta");
+    const en = await prisma.language.findUniqueOrThrow({ where: { code: "en" } });
 
     const existingSteps = await prisma.step.count({ where: { languageId: en.id } });
     if (existingSteps === 0) {
@@ -86,9 +100,8 @@ async function main() {
   }
 
   for (const s of settingsRows) {
-    const label =
-      s.language === "en" ? "English" : s.language === "ml" ? "മലയാളം" : s.language === "ta" ? "தமிழ்" : s.language;
-    const lang = await upsertLanguage(label, s.language);
+    const label = catalogNameForCode(s.language) ?? s.language;
+    const lang = await upsertLanguage(label, s.language.trim().toLowerCase());
 
     const n = await prisma.step.count({ where: { languageId: lang.id } });
     if (n > 0) continue;

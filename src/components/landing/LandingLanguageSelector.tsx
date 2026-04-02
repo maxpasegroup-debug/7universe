@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { INDIAN_LANGUAGES_CATALOG } from "@/lib/languages-catalog";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/storage";
 
 type LanguageOption = {
@@ -8,11 +9,7 @@ type LanguageOption = {
   name: string;
 };
 
-const FALLBACK_OPTIONS: LanguageOption[] = [
-  { code: "en", name: "English" },
-  { code: "ml", name: "മലയാളം" },
-  { code: "ta", name: "தமிழ்" },
-];
+const FALLBACK_OPTIONS: LanguageOption[] = INDIAN_LANGUAGES_CATALOG.map(({ code, name }) => ({ code, name }));
 
 export function LandingLanguageSelector() {
   const [options, setOptions] = useState<LanguageOption[]>(FALLBACK_OPTIONS);

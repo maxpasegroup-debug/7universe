@@ -63,3 +63,10 @@ export function isUuid(v: string): boolean {
 export function isValid4DigitPin(v: string): boolean {
   return /^\d{4}$/.test(v.trim());
 }
+
+/** Normalized language code for signup API (never empty; safe charset). */
+export function normalizeSignupLanguageCode(raw: string | null | undefined): string {
+  const v = raw?.trim().toLowerCase() ?? "";
+  if (!v || v.length > 24 || !/^[a-z0-9_-]+$/.test(v)) return "en";
+  return v;
+}
