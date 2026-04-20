@@ -147,7 +147,7 @@ export function DashboardClient() {
 
   return (
     <>
-      <DashboardHeader />
+      <DashboardHeader logoutLabel={c.dashboard.logout} logoutConfirm={c.dashboard.logoutConfirm} />
 
       <div className="mx-auto max-w-3xl space-y-8 px-4 pb-40 pt-8 sm:px-6 sm:pb-44 sm:pt-10">
         <section className="rounded-3xl border border-amber-500/15 bg-gradient-to-br from-slate-950/90 via-[#0a1020] to-slate-900/50 p-6 shadow-[0_0_60px_rgba(245,158,11,0.08)] sm:p-10">

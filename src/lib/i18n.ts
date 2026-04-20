@@ -75,6 +75,8 @@ export type Copy = {
     shareLink: string;
     markStepComplete: string;
     openLink: string;
+    logout: string;
+    logoutConfirm: string;
   };
   faq: { q: string; a: string }[];
 };
@@ -140,6 +142,8 @@ const copy: Record<LanguageCode, Copy> = {
       shareLink: "Share",
       markStepComplete: "Mark as complete",
       openLink: "Open link",
+      logout: "Log out",
+      logoutConfirm: "Are you sure you want to log out?",
     },
     faq: [
       {
@@ -216,6 +220,8 @@ const copy: Record<LanguageCode, Copy> = {
       shareLink: "പങ്കിടുക",
       markStepComplete: "പൂർത്തിയാക്കിയതായി അടയാളപ്പെടുത്തുക",
       openLink: "ലിങ്ക് തുറക്കുക",
+      logout: "ലോഗ് ഔട്ട്",
+      logoutConfirm: "ലോഗ് ഔട്ട് ചെയ്യണമെന്ന് ഉറപ്പാണോ?",
     },
     faq: [
       {
@@ -292,6 +298,8 @@ const copy: Record<LanguageCode, Copy> = {
       shareLink: "பகிர்",
       markStepComplete: "முடித்ததாகக் குறி",
       openLink: "இணைப்பைத் திற",
+      logout: "வெளியேறு",
+      logoutConfirm: "நீங்கள் நிச்சயமாக வெளியேற விரும்புகிறீர்களா?",
     },
     faq: [
       {
