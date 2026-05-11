@@ -1,5 +1,3 @@
-import { youtubeEmbedId } from "@/lib/youtube";
-
 export type PublicAppSettings = {
   step1VideoUrl: string;
   step2PdfUrl: string;
@@ -16,8 +14,8 @@ export type MediaBundle = {
 
 export function mediaFromPublicSettings(s: PublicAppSettings): MediaBundle {
   return {
-    orientationVideoId: youtubeEmbedId(s.step1VideoUrl),
-    businessVideoId: youtubeEmbedId(s.step3VideoUrl),
+    orientationVideoId: s.step1VideoUrl.trim(),
+    businessVideoId: s.step3VideoUrl.trim(),
     earningPdfUrl: s.step2PdfUrl.trim(),
     joinLink: s.joinLink.trim(),
   };

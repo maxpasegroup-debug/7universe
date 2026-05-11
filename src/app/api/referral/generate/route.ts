@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { badRequest } from "@/lib/api";
-import { getServerAppBaseUrl } from "@/lib/app-url";
 import { userCookieName, verifyUserSessionToken } from "@/lib/auth/user-session";
+import { SAFEPAL_REFERRAL_URL } from "@/lib/constants";
 import { isUuid } from "@/lib/validation";
 
 export async function GET(request: Request) {
@@ -25,8 +25,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
-  const base = getServerAppBaseUrl();
-  const referralLink = `${base}?ref=${encodeURIComponent(userId)}`;
-
-  return NextResponse.json({ referralLink });
+  return NextResponse.json({ referralLink: SAFEPAL_REFERRAL_URL });
 }

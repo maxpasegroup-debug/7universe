@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { ContentCategory, MaterialKind, PrismaClient, StepKind } from "@prisma/client";
+import { JOIN_EXTERNAL_URL, SAFEPAL_VIDEO_BASE_PATH } from "../src/lib/constants";
 import { INDIAN_LANGUAGES_CATALOG, catalogNameForCode } from "../src/lib/languages-catalog";
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -42,7 +43,7 @@ async function main() {
           languageId: en.id,
           contentType: ContentCategory.orientation,
           title: "Orientation",
-          videoUrl: "jfKfPfyJRdk",
+          videoUrl: SAFEPAL_VIDEO_BASE_PATH,
           sortOrder: 0,
         },
       });
@@ -58,8 +59,8 @@ async function main() {
         data: {
           languageId: en.id,
           contentType: ContentCategory.training,
-          title: "Business video",
-          videoUrl: "2vjPBrBU-TM",
+          title: "SafePal Malayalam",
+          videoUrl: SAFEPAL_VIDEO_BASE_PATH,
           sortOrder: 1,
         },
       });
@@ -90,7 +91,7 @@ async function main() {
             languageId: en.id,
             title: "Join 7Universe",
             stepType: StepKind.action,
-            actionUrl: "https://example.com/join",
+            actionUrl: JOIN_EXTERNAL_URL,
             sortOrder: 3,
           },
         ],
@@ -127,8 +128,8 @@ async function main() {
       data: {
         languageId: lang.id,
         contentType: ContentCategory.training,
-        title: "Business video",
-        videoUrl: s.step3VideoUrl,
+        title: "SafePal Malayalam",
+        videoUrl: SAFEPAL_VIDEO_BASE_PATH,
         sortOrder: 1,
       },
     });
@@ -159,7 +160,7 @@ async function main() {
           languageId: lang.id,
           title: "Join",
           stepType: StepKind.action,
-          actionUrl: s.joinLink || "https://example.com/join",
+          actionUrl: JOIN_EXTERNAL_URL,
           sortOrder: 3,
         },
       ],

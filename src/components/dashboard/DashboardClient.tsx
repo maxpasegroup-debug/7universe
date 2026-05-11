@@ -9,10 +9,9 @@ import {
   type JourneyStep,
   type ProgressRow,
 } from "@/lib/api/user-client";
-import { getAppPublicUrl } from "@/lib/app-url";
+import { SAFEPAL_REFERRAL_URL, SAFEPAL_VIDEO_BASE_PATH } from "@/lib/constants";
 import { getCopy, resolveLanguage } from "@/lib/i18n";
 import { clearStoredProfile, getStoredLanguage, getStoredProfile } from "@/lib/storage";
-import { youtubeEmbedId } from "@/lib/youtube";
 import { ChatbotFAB } from "@/components/dashboard/ChatbotFAB";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { FloatingWhatsAppBar } from "@/components/dashboard/FloatingWhatsAppBar";
@@ -44,6 +43,14 @@ function trackerCompleted(steps: JourneyStep[], completed: Set<string>): boolean
     if (s.kind === "video" || s.kind === "pdf") return completed.has(s.id);
     return isStepUnlocked(steps, completed, i);
   });
+}
+
+function playableMediaSrc(src: string | null): string {
+  const value = src?.trim() ?? "";
+  if (!value) return SAFEPAL_VIDEO_BASE_PATH;
+  if (/^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be)\b/i.test(value)) return SAFEPAL_VIDEO_BASE_PATH;
+  if (/^[\w-]{11}$/.test(value)) return SAFEPAL_VIDEO_BASE_PATH;
+  return value;
 }
 
 export function DashboardClient() {
@@ -116,7 +123,7 @@ export function DashboardClient() {
     document.getElementById("step-0")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  const referralUrl = stored?.id ? `${getAppPublicUrl()}?ref=${encodeURIComponent(stored.id)}` : "";
+  const referralUrl = stored?.id ? SAFEPAL_REFERRAL_URL : "";
 
   async function copyReferral() {
     if (!referralUrl) return;
@@ -261,7 +268,7 @@ export function DashboardClient() {
                       {(step.kind === "video" || step.kind === "pdf") && (
                         <MarkStepButton
                           loading={savingStepId === step.id}
-                          disabled={done || !unlocked}
+                          disabled={!unlocked}
                           onClick={() => void saveStepId(step.id)}
                         >
                           {savingStepId === step.id ? c.dashboard.saving : c.dashboard.markStepComplete}
@@ -271,7 +278,7 @@ export function DashboardClient() {
                         <>
                           {unlocked ? (
                             <a
-                              href={step.actionUrl}
+                              href={SAFEPAL_REFERRAL_URL}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="glow-gold inline-flex w-full max-w-lg items-center justify-center rounded-xl border border-amber-400/40 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 px-6 py-4 text-center text-lg font-semibold text-black shadow-lg hover:brightness-110 sm:text-xl"
@@ -291,8 +298,8 @@ export function DashboardClient() {
                   {!unlocked && (step.kind === "video" || step.kind === "pdf" || step.kind === "action") && (
                     <p className="text-xs text-slate-500">{c.dashboard.completePrevious}</p>
                   )}
-                  {step.kind === "video" && step.videoUrl && (
-                    <VideoEmbed videoId={youtubeEmbedId(step.videoUrl)} title={step.title} />
+                  {step.kind === "video" && (
+                    <VideoEmbed src={playableMediaSrc(step.videoUrl)} title={step.title} />
                   )}
                 </StepCard>
               </div>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getRequestId, logApiError, notFound, serverError } from "@/lib/api";
+import { JOIN_EXTERNAL_URL, SAFEPAL_VIDEO_BASE_PATH } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 
 const DEFAULT_LANGUAGE = "en";
@@ -31,10 +32,10 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({
-      step1VideoUrl: row.step1VideoUrl,
+      step1VideoUrl: SAFEPAL_VIDEO_BASE_PATH,
       step2PdfUrl: row.step2PdfUrl,
-      step3VideoUrl: row.step3VideoUrl,
-      joinLink: row.joinLink,
+      step3VideoUrl: SAFEPAL_VIDEO_BASE_PATH,
+      joinLink: JOIN_EXTERNAL_URL,
     });
   } catch (e) {
     logApiError("GET /api/settings/get", e, requestId);

@@ -1,23 +1,25 @@
+import { SAFEPAL_VIDEO_BASE_PATH } from "@/lib/constants";
+
 /** Locales with full in-app copy (UI strings). Other language codes fall back to English copy via {@link getCopy}. */
 export type LanguageCode = "en" | "ml" | "ta";
 
-/** Placeholder YouTube IDs — swap per language when you have real links. */
+/** Local media defaults. */
 const MEDIA = {
   en: {
-    orientationVideoId: "jfKfPfyJRdk",
-    businessVideoId: "2vjPBrBU-TM",
+    orientationVideoId: SAFEPAL_VIDEO_BASE_PATH,
+    businessVideoId: SAFEPAL_VIDEO_BASE_PATH,
     earningPdfUrl:
       "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
   },
   ml: {
-    orientationVideoId: "jfKfPfyJRdk",
-    businessVideoId: "2vjPBrBU-TM",
+    orientationVideoId: SAFEPAL_VIDEO_BASE_PATH,
+    businessVideoId: SAFEPAL_VIDEO_BASE_PATH,
     earningPdfUrl:
       "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
   },
   ta: {
-    orientationVideoId: "jfKfPfyJRdk",
-    businessVideoId: "2vjPBrBU-TM",
+    orientationVideoId: SAFEPAL_VIDEO_BASE_PATH,
+    businessVideoId: SAFEPAL_VIDEO_BASE_PATH,
     earningPdfUrl:
       "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
   },
